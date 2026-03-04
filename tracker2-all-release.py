@@ -1,20 +1,30 @@
+import os
 import cv2
 import math
 import torch
+import argparse
+from datetime import datetime
 from ultralytics import YOLO
+
+parser = argparse.ArgumentParser(description="Run YOLO tracker on a video.")
+parser.add_argument("video_path", type=str, help="Path to the input video file")
+args = parser.parse_args()
 
 print("\n🔍 --- SYSTEM INITIALIZING ---")
 compute_device = "mps" if torch.backends.mps.is_available() else "cpu"
 
 model = YOLO("yolov8x.pt") 
 
-video_path = "/Users/jurebb/Documents/data/01_Plaza Del Castillo-Feb27/1_Afternoon.mp4"
+video_path = args.video_path
 cap = cv2.VideoCapture(video_path)
 assert cap.isOpened(), "Error reading video file"
 
 w, h, fps = (int(cap.get(x)) for x in (cv2.CAP_PROP_FRAME_WIDTH, cv2.CAP_PROP_FRAME_HEIGHT, cv2.CAP_PROP_FPS))
 
-output_path = "output_demo.mp4"
+input_name = os.path.splitext(os.path.basename(video_path))[0]
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+os.makedirs("output", exist_ok=True)
+output_path = f"output/{input_name}_{timestamp}.mp4"
 video_writer = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h))
 
 track_history = {}  
@@ -36,8 +46,16 @@ while cap.isOpened():
     if not success:
         break
 
-    results = model.track(frame, persist=True, classes=TARGET_CLASSES, tracker="bytetrack.yaml", device=compute_device, verbose=False)
-    annotated_frame = results[0].plot(line_width=5, font_size=5)
+    results = model.track(frame, 
+                          persist=True, 
+                          classes=TARGET_CLASSES, 
+                          tracker="custom_tracker.yaml", 
+                          device=compute_device, 
+                          conf=0.15, 
+                          imgsz=1440, 
+                          iou=0.4,
+                          verbose=False)
+    annotated_frame = results[0].plot(line_width=2, font_size=2)
 
     if results[0].boxes.id is not None:
         boxes = results[0].boxes.xywh.cpu() 
