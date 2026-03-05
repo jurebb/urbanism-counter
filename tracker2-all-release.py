@@ -96,7 +96,9 @@ while cap.isOpened():
     box_width = 200
     box_height = 190
     
-    cv2.rectangle(overlay, (w - box_width - 20, 20), (w - 20, 20 + box_height), (0, 0, 0), -1)
+    color = (162, 86, 26)  # BGR for hex #1A56A2
+    
+    cv2.rectangle(overlay, (w - box_width - 20, 20), (w - 20, 20 + box_height), color, -1)
     cv2.addWeighted(overlay, 0.7, annotated_frame, 0.3, 0, annotated_frame)
     
     y_offset = 45
