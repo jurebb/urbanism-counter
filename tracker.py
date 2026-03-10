@@ -52,7 +52,7 @@ class_counts = {0: 0, 1: 0, 2: 0, 3: 0, 5: 0, 6: 0, 7: 0}
 TIME_THRESHOLD = 7
 DISTANCE_THRESHOLD = 10
 
-print("🚀 Running Multi-Class Hybrid Tracking...")
+print("Running Multi-Class Hybrid Tracking...")
 
 while cap.isOpened():
     success, frame = cap.read()
