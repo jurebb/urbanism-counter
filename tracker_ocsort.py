@@ -24,11 +24,11 @@ tracker = DeepOcSort(
     half=False,
     delta_t=1,
     inertia=0.2,
-    w_association_emb=0.75,
+    w_association_emb=0.9,
     alpha_fixed_emb=0.95,
     max_age=150,
     min_hits=3,
-    asso_func="giou",  # Generalized IoU — gives credit for proximity even with no overlap (fixes small reappearance bbox problem)
+    asso_func="giou",   # gives credit for proximity even with no overlap (fixes small reappearance bbox)
 )
 
 video_path = args.video_path
