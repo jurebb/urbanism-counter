@@ -11,24 +11,38 @@ from boxmot import DeepOcSort
 
 parser = argparse.ArgumentParser(description="Run YOLO + OC-SORT tracker on a video.")
 parser.add_argument("video_path", type=str, help="Path to the input video file")
+parser.add_argument("--show-config", action="store_true", default=False, help="Overlay config params on video")
 args = parser.parse_args()
+
+DETECTOR_MODEL   = "yolo11x.pt"
+REID_MODEL       = "osnet_x1_0_msmt17.pt"
+CONF             = 0.15
+IMGSZ            = 1440
+NMS_IOU          = 0.85
+TRACKER_MAX_AGE  = 150
+TRACKER_MIN_HITS = 3
+TRACKER_DELTA_T  = 1
+TRACKER_INERTIA  = 0.2
+W_ASSOC_EMB      = 0.9
+ALPHA_FIXED_EMB  = 0.95
+ASSO_FUNC        = "giou"
 
 print("\n🔍 --- SYSTEM INITIALIZING ---")
 compute_device = "mps" if torch.backends.mps.is_available() else "cpu"
 
-model = YOLO("yolo11x.pt")
+model = YOLO(DETECTOR_MODEL)
 
 tracker = DeepOcSort(
-    reid_weights=Path("osnet_x1_0_msmt17.pt"),
+    reid_weights=Path(REID_MODEL),
     device=torch.device(compute_device),
     half=False,
-    delta_t=1,
-    inertia=0.2,
-    w_association_emb=0.9,
-    alpha_fixed_emb=0.95,
-    max_age=150,
-    min_hits=3,
-    asso_func="giou",   # gives credit for proximity even with no overlap (fixes small reappearance bbox)
+    delta_t=TRACKER_DELTA_T,
+    inertia=TRACKER_INERTIA,
+    w_association_emb=W_ASSOC_EMB,
+    alpha_fixed_emb=ALPHA_FIXED_EMB,
+    max_age=TRACKER_MAX_AGE,
+    min_hits=TRACKER_MIN_HITS,
+    asso_func=ASSO_FUNC,
 )
 
 video_path = args.video_path
@@ -89,9 +103,9 @@ while cap.isOpened():
         frame,
         classes=TARGET_CLASSES,
         device=compute_device,
-        conf=0.15,
-        imgsz=1440,
-        iou=0.85,
+        conf=CONF,
+        imgsz=IMGSZ,
+        iou=NMS_IOU,
         verbose=False,
     )
 
@@ -187,6 +201,33 @@ while cap.isOpened():
         (w - box_width - 5, y_offset + 10),
         cv2.FONT_HERSHEY_SIMPLEX, 1.25, (255, 255, 255), 2,
     )
+
+    if args.show_config:
+        config_lines = [
+            f"detector:    {DETECTOR_MODEL}",
+            f"reid:        {REID_MODEL}",
+            f"tracker:     DeepOcSort",
+            f"asso_func:   {ASSO_FUNC}",
+            f"conf:        {CONF}",
+            f"imgsz:       {IMGSZ}",
+            f"nms_iou:     {NMS_IOU}",
+            f"max_age:     {TRACKER_MAX_AGE}",
+            f"min_hits:    {TRACKER_MIN_HITS}",
+            f"delta_t:     {TRACKER_DELTA_T}",
+            f"inertia:     {TRACKER_INERTIA}",
+            f"w_emb:       {W_ASSOC_EMB}",
+            f"alpha_emb:   {ALPHA_FIXED_EMB}",
+        ]
+        font, fscale, thick = cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1
+        pad, line_h = 6, 18
+        box_w = max(cv2.getTextSize(l, font, fscale, thick)[0][0] for l in config_lines) + pad * 2
+        box_h = line_h * len(config_lines) + pad * 2
+        cfg_overlay = annotated_frame.copy()
+        cv2.rectangle(cfg_overlay, (10, 10), (10 + box_w, 10 + box_h), (30, 30, 30), -1)
+        cv2.addWeighted(cfg_overlay, 0.7, annotated_frame, 0.3, 0, annotated_frame)
+        for i, line in enumerate(config_lines):
+            cv2.putText(annotated_frame, line, (10 + pad, 10 + pad + line_h * (i + 1) - 4),
+                        font, fscale, (220, 220, 220), thick)
 
     video_writer.write(annotated_frame)
     cv2.imshow("Deep OC-SORT Tracker", annotated_frame)
