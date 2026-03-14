@@ -8,6 +8,12 @@ from ultralytics import YOLO
 
 parser = argparse.ArgumentParser(description="Run YOLO tracker on a video.")
 parser.add_argument("video_path", type=str, help="Path to the input video file")
+parser.add_argument(
+    "--tracker",
+    type=str,
+    default="custom_tracker.yaml",
+    help="Tracker config: 'bytetrack', 'botsort', or path to a custom yaml (default: custom_tracker.yaml)",
+)
 args = parser.parse_args()
 
 print("\n🔍 --- SYSTEM INITIALIZING ---")
@@ -63,7 +69,7 @@ while cap.isOpened():
         frame,
         persist=True,
         classes=TARGET_CLASSES,
-        tracker="custom_tracker.yaml",
+        tracker=args.tracker,
         device=compute_device,
         conf=0.15,
         imgsz=1440,
