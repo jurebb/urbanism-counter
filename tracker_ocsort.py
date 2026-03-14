@@ -121,7 +121,12 @@ while cap.isOpened():
 
     try:
         tracks = tracker.update(dets, frame)
-    except IndexError:
+        if tracks is None or len(tracks) == 0:
+            tracks = np.empty((0, 7))
+        elif tracks.ndim == 1:
+            tracks = tracks.reshape(1, -1)
+    except IndexError as e:
+        print(f"⚠️  IndexError on frame (skipping tracks): {e}")
         tracks = np.empty((0, 7))
     # tracks: [x1, y1, x2, y2, track_id, conf, cls, ...]
 
