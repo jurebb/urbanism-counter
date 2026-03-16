@@ -14,6 +14,7 @@ parser = argparse.ArgumentParser(description="Run YOLO tracker on a video.")
 parser.add_argument("video_path", type=str, help="Path to the input video file")
 parser.add_argument("--show-config", action="store_true", default=False)
 parser.add_argument("--heatmap", action="store_true", default=False, help="Overlay live heatmap and save at end")
+parser.add_argument("--dwell", action="store_true", default=False, help="Heatmap counts only stationary positions (dwell mode)")
 args = parser.parse_args()
 
 DETECTOR_MODEL   = "yolo11x.pt"
@@ -71,7 +72,7 @@ video_writer = cv2.VideoWriter(
 
 track_history = {}
 counted_ids = set()
-heatmap = HeatmapAccumulator(w, h) if args.heatmap else None
+heatmap = HeatmapAccumulator(w, h, dwell_only=args.dwell) if args.heatmap else None
 
 # COCO classes: 0=person, 1=bicycle, 2=car, 3=motorcycle, 5=bus, 6=train, 7=truck
 TARGET_CLASSES = [0, 1, 2, 3, 5, 6, 7]
@@ -231,6 +232,7 @@ while cap.isOpened():
             f"inertia:     {DS_INERTIA}",
             f"w_emb:       {DS_W_ASSOC_EMB}",
             f"alpha_emb:   {DS_ALPHA_FIXED_EMB}",
+            f"heatmap:     {'dwell' if args.dwell else 'density' if args.heatmap else 'off'}",
         ]
         font, fscale, thick = cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1
         pad, line_h = 6, 18
