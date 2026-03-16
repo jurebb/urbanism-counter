@@ -15,6 +15,7 @@ parser.add_argument("video_path", type=str, help="Path to the input video file")
 parser.add_argument("--show-config", action="store_true", default=False)
 parser.add_argument("--heatmap", action="store_true", default=False, help="Overlay live heatmap and save at end")
 parser.add_argument("--dwell", action="store_true", default=False, help="Heatmap counts only stationary positions (dwell mode)")
+parser.add_argument("--no-boxes", action="store_true", default=False, help="Hide bounding boxes and labels")
 args = parser.parse_args()
 
 DETECTOR_MODEL   = "yolo11x.pt"
@@ -152,13 +153,14 @@ while cap.isOpened():
             cx = (x1 + x2) / 2
             cy = (y1 + y2) / 2
 
-            color = CLASS_COLORS.get(cls_id, (200, 200, 200))
-            cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
-            label = f"id:{track_id} {CLASS_NAMES.get(cls_id, '?')} {conf:.2f}"
-            (lw, lh), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
-            cv2.rectangle(annotated_frame, (x1, y1 - lh - 10), (x1 + lw + 4, y1), color, -1)
-            cv2.putText(annotated_frame, label, (x1 + 2, y1 - 4),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+            if not args.no_boxes:
+                color = CLASS_COLORS.get(cls_id, (200, 200, 200))
+                cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
+                label = f"id:{track_id} {CLASS_NAMES.get(cls_id, '?')} {conf:.2f}"
+                (lw, lh), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+                cv2.rectangle(annotated_frame, (x1, y1 - lh - 10), (x1 + lw + 4, y1), color, -1)
+                cv2.putText(annotated_frame, label, (x1 + 2, y1 - 4),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
             if track_id not in track_history:
                 track_history[track_id] = {
