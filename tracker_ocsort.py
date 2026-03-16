@@ -7,11 +7,10 @@ import numpy as np
 from datetime import datetime
 from ultralytics import YOLO
 from pathlib import Path
-from boxmot import DeepOcSort, BotSort
+from boxmot import DeepOcSort
 
 parser = argparse.ArgumentParser(description="Run YOLO tracker on a video.")
 parser.add_argument("video_path", type=str, help="Path to the input video file")
-parser.add_argument("--tracker", choices=["deepocsort", "botsort"], default="deepocsort")
 parser.add_argument("--show-config", action="store_true", default=False)
 args = parser.parse_args()
 
@@ -30,17 +29,6 @@ DS_W_ASSOC_EMB      = 0.9
 DS_ALPHA_FIXED_EMB  = 0.95
 DS_ASSO_FUNC        = "giou"
 
-# --- BotSort config ---
-BS_REID_MODEL       = "osnet_x1_0_msmt17.pt"
-BS_CONF             = 0.05   # low so second-stage gets low-conf detections
-BS_TRACK_HIGH_THRESH = 0.5
-BS_TRACK_LOW_THRESH  = 0.05
-BS_NEW_TRACK_THRESH  = 0.6
-BS_TRACK_BUFFER      = 150
-BS_MATCH_THRESH      = 0.7
-BS_PROXIMITY_THRESH  = 0.5
-BS_APPEARANCE_THRESH = 0.5
-BS_CMC_METHOD        = "sof"   # sparse optical flow (lightest option)
 
 print("\n🔍 --- SYSTEM INITIALIZING ---")
 compute_device = "mps" if torch.backends.mps.is_available() else "cpu"
@@ -56,44 +44,25 @@ w, h, fps = (
     for x in (cv2.CAP_PROP_FRAME_WIDTH, cv2.CAP_PROP_FRAME_HEIGHT, cv2.CAP_PROP_FPS)
 )
 
-if args.tracker == "deepocsort":
-    CONF = DS_CONF
-    tracker = DeepOcSort(
-        reid_weights=Path(DS_REID_MODEL),
-        device=torch.device(compute_device),
-        half=False,
-        delta_t=DS_DELTA_T,
-        inertia=DS_INERTIA,
-        w_association_emb=DS_W_ASSOC_EMB,
-        alpha_fixed_emb=DS_ALPHA_FIXED_EMB,
-        max_age=DS_MAX_AGE,
-        min_hits=DS_MIN_HITS,
-        asso_func=DS_ASSO_FUNC,
-    )
-    tracker_label = "DeepOcSort"
-else:
-    CONF = BS_CONF
-    tracker = BotSort(
-        reid_weights=Path(BS_REID_MODEL),
-        device=torch.device(compute_device),
-        half=False,
-        track_high_thresh=BS_TRACK_HIGH_THRESH,
-        track_low_thresh=BS_TRACK_LOW_THRESH,
-        new_track_thresh=BS_NEW_TRACK_THRESH,
-        track_buffer=BS_TRACK_BUFFER,
-        match_thresh=BS_MATCH_THRESH,
-        proximity_thresh=BS_PROXIMITY_THRESH,
-        appearance_thresh=BS_APPEARANCE_THRESH,
-        cmc_method=BS_CMC_METHOD,
-        frame_rate=fps,
-        with_reid=True,
-    )
-    tracker_label = "BotSort"
+CONF = DS_CONF
+tracker = DeepOcSort(
+    reid_weights=Path(DS_REID_MODEL),
+    device=torch.device(compute_device),
+    half=False,
+    delta_t=DS_DELTA_T,
+    inertia=DS_INERTIA,
+    w_association_emb=DS_W_ASSOC_EMB,
+    alpha_fixed_emb=DS_ALPHA_FIXED_EMB,
+    max_age=DS_MAX_AGE,
+    min_hits=DS_MIN_HITS,
+    asso_func=DS_ASSO_FUNC,
+)
+tracker_label = "DeepOcSort"
 
 input_name = os.path.splitext(os.path.basename(video_path))[0]
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 os.makedirs("output", exist_ok=True)
-output_path = f"output/{input_name}_{timestamp}_{args.tracker}.mp4"
+output_path = f"output/{input_name}_{timestamp}_deepocsort.mp4"
 video_writer = cv2.VideoWriter(
     output_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h)
 )
@@ -242,38 +211,21 @@ while cap.isOpened():
     )
 
     if args.show_config:
-        if args.tracker == "deepocsort":
-            config_lines = [
-                f"tracker:     {tracker_label}",
-                f"detector:    {DETECTOR_MODEL}",
-                f"reid:        {DS_REID_MODEL}",
-                f"asso_func:   {DS_ASSO_FUNC}",
-                f"conf:        {DS_CONF}",
-                f"imgsz:       {IMGSZ}",
-                f"nms_iou:     {NMS_IOU}",
-                f"max_age:     {DS_MAX_AGE}",
-                f"min_hits:    {DS_MIN_HITS}",
-                f"delta_t:     {DS_DELTA_T}",
-                f"inertia:     {DS_INERTIA}",
-                f"w_emb:       {DS_W_ASSOC_EMB}",
-                f"alpha_emb:   {DS_ALPHA_FIXED_EMB}",
-            ]
-        else:
-            config_lines = [
-                f"tracker:     {tracker_label}",
-                f"detector:    {DETECTOR_MODEL}",
-                f"reid:        {BS_REID_MODEL}",
-                f"conf:        {BS_CONF}",
-                f"imgsz:       {IMGSZ}",
-                f"nms_iou:     {NMS_IOU}",
-                f"hi_thresh:   {BS_TRACK_HIGH_THRESH}",
-                f"lo_thresh:   {BS_TRACK_LOW_THRESH}",
-                f"new_thresh:  {BS_NEW_TRACK_THRESH}",
-                f"buffer:      {BS_TRACK_BUFFER}",
-                f"match_thresh:{BS_MATCH_THRESH}",
-                f"appear_thresh:{BS_APPEARANCE_THRESH}",
-                f"cmc:         {BS_CMC_METHOD}",
-            ]
+        config_lines = [
+            f"tracker:     {tracker_label}",
+            f"detector:    {DETECTOR_MODEL}",
+            f"reid:        {DS_REID_MODEL}",
+            f"asso_func:   {DS_ASSO_FUNC}",
+            f"conf:        {DS_CONF}",
+            f"imgsz:       {IMGSZ}",
+            f"nms_iou:     {NMS_IOU}",
+            f"max_age:     {DS_MAX_AGE}",
+            f"min_hits:    {DS_MIN_HITS}",
+            f"delta_t:     {DS_DELTA_T}",
+            f"inertia:     {DS_INERTIA}",
+            f"w_emb:       {DS_W_ASSOC_EMB}",
+            f"alpha_emb:   {DS_ALPHA_FIXED_EMB}",
+        ]
         font, fscale, thick = cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1
         pad, line_h = 6, 18
         box_w = max(cv2.getTextSize(l, font, fscale, thick)[0][0] for l in config_lines) + pad * 2
