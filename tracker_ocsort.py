@@ -20,6 +20,7 @@ args = parser.parse_args()
 DETECTOR_MODEL   = "yolo11x.pt"
 IMGSZ            = 1440
 NMS_IOU          = 0.85
+HEATMAP_BLUR_RADIUS = 143  # None = auto (~2% of width); set e.g. w//20 for larger blobs
 
 # --- DeepOcSort config (best known) ---
 DS_REID_MODEL       = "osnet_x1_0_msmt17.pt"
@@ -72,7 +73,7 @@ video_writer = cv2.VideoWriter(
 
 track_history = {}
 counted_ids = set()
-heatmap = HeatmapAccumulator(w, h, dwell_only=args.dwell) if args.heatmap else None
+heatmap = HeatmapAccumulator(w, h, blur_radius=HEATMAP_BLUR_RADIUS, dwell_only=args.dwell) if args.heatmap else None
 
 # COCO classes: 0=person, 1=bicycle, 2=car, 3=motorcycle, 5=bus, 6=train, 7=truck
 TARGET_CLASSES = [0, 1, 2, 3, 5, 6, 7]

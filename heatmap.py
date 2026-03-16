@@ -7,7 +7,7 @@ from collections import deque
 class HeatmapAccumulator:
     """Accumulates track centre-point positions and renders a live heatmap overlay."""
 
-    def __init__(self, width: int, height: int, blur_radius: int = 0, alpha: float = 0.5,
+    def __init__(self, width: int, height: int, blur_radius: int = None, alpha: float = 0.5,
                  dwell_only: bool = False, dwell_threshold: float = 6.0):
         self.width = width
         self.height = height
@@ -15,9 +15,8 @@ class HeatmapAccumulator:
         self.dwell_only = dwell_only
         self.dwell_threshold = dwell_threshold  # max total px displacement (first→last over window) to count as stationary
         self._ROLLING = 15  # window length for displacement check
-        # blur_radius defaults to ~2% of width, always odd
-        if blur_radius == 0:
-            blur_radius = max(51, (width // 50) | 1)
+        if blur_radius is None:
+            blur_radius = max(51, (width // 50) | 1)  # default: ~2% of width
         self.blur_radius = blur_radius if blur_radius % 2 == 1 else blur_radius + 1
         self.accumulator = np.zeros((height, width), dtype=np.float32)
         self._position_history: dict = {}  # track_id -> deque of (cx, cy)
