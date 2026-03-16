@@ -16,6 +16,7 @@ parser.add_argument("--show-config", action="store_true", default=False)
 parser.add_argument("--heatmap", action="store_true", default=False, help="Overlay live heatmap and save at end")
 parser.add_argument("--dwell", action="store_true", default=False, help="Heatmap counts only stationary positions (dwell mode)")
 parser.add_argument("--no-boxes", action="store_true", default=False, help="Hide bounding boxes and labels")
+parser.add_argument("--no-counter", action="store_true", default=False, help="Hide counts overlay in top right")
 args = parser.parse_args()
 
 DETECTOR_MODEL   = "yolo11x.pt"
@@ -187,38 +188,39 @@ while cap.isOpened():
                             f"🎯 {class_name} (ID {track_id}) counted! (Frames: {history['frames_seen']}, Displacement: {int(distance)}px)"
                         )
 
-    overlay = annotated_frame.copy()
-    box_width = 400
-    box_height = 410
-    color = (162, 86, 26)
-    cv2.rectangle(
-        overlay, (w - box_width - 20, 20), (w - 20, 20 + box_height), color, -1
-    )
-    cv2.addWeighted(overlay, 0.7, annotated_frame, 0.3, 0, annotated_frame)
-
-    y_offset = 55
-    cv2.putText(
-        annotated_frame, "--- COUNTS ---",
-        (w - box_width - 5, y_offset),
-        cv2.FONT_HERSHEY_SIMPLEX, 1.15, (255, 255, 255), 2,
-    )
-    y_offset += 45
-
-    for cls_id in TARGET_CLASSES:
-        name = CLASS_NAMES[cls_id]
-        count = class_counts[cls_id]
-        cv2.putText(
-            annotated_frame, f"{name}: {count}",
-            (w - box_width - 5, y_offset),
-            cv2.FONT_HERSHEY_SIMPLEX, 1.15, (200, 255, 200), 1,
+    if not args.no_counter:
+        overlay = annotated_frame.copy()
+        box_width = 400
+        box_height = 410
+        color = (162, 86, 26)
+        cv2.rectangle(
+            overlay, (w - box_width - 20, 20), (w - 20, 20 + box_height), color, -1
         )
-        y_offset += 42
+        cv2.addWeighted(overlay, 0.7, annotated_frame, 0.3, 0, annotated_frame)
 
-    cv2.putText(
-        annotated_frame, f"TOTAL: {len(counted_ids)}",
-        (w - box_width - 5, y_offset + 10),
-        cv2.FONT_HERSHEY_SIMPLEX, 1.25, (255, 255, 255), 2,
-    )
+        y_offset = 55
+        cv2.putText(
+            annotated_frame, "--- COUNTS ---",
+            (w - box_width - 5, y_offset),
+            cv2.FONT_HERSHEY_SIMPLEX, 1.15, (255, 255, 255), 2,
+        )
+        y_offset += 45
+
+        for cls_id in TARGET_CLASSES:
+            name = CLASS_NAMES[cls_id]
+            count = class_counts[cls_id]
+            cv2.putText(
+                annotated_frame, f"{name}: {count}",
+                (w - box_width - 5, y_offset),
+                cv2.FONT_HERSHEY_SIMPLEX, 1.15, (200, 255, 200), 1,
+            )
+            y_offset += 42
+
+        cv2.putText(
+            annotated_frame, f"TOTAL: {len(counted_ids)}",
+            (w - box_width - 5, y_offset + 10),
+            cv2.FONT_HERSHEY_SIMPLEX, 1.25, (255, 255, 255), 2,
+        )
 
     if args.show_config:
         config_lines = [
