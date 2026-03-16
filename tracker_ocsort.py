@@ -8,10 +8,12 @@ from datetime import datetime
 from ultralytics import YOLO
 from pathlib import Path
 from boxmot import DeepOcSort
+from heatmap import HeatmapAccumulator
 
 parser = argparse.ArgumentParser(description="Run YOLO tracker on a video.")
 parser.add_argument("video_path", type=str, help="Path to the input video file")
 parser.add_argument("--show-config", action="store_true", default=False)
+parser.add_argument("--heatmap", action="store_true", default=False, help="Overlay live heatmap and save at end")
 args = parser.parse_args()
 
 DETECTOR_MODEL   = "yolo11x.pt"
@@ -69,6 +71,7 @@ video_writer = cv2.VideoWriter(
 
 track_history = {}
 counted_ids = set()
+heatmap = HeatmapAccumulator(w, h) if args.heatmap else None
 
 # COCO classes: 0=person, 1=bicycle, 2=car, 3=motorcycle, 5=bus, 6=train, 7=truck
 TARGET_CLASSES = [0, 1, 2, 3, 5, 6, 7]
@@ -133,7 +136,10 @@ while cap.isOpened():
         tracks = np.empty((0, 7))
     # tracks: [x1, y1, x2, y2, track_id, conf, cls, ...]
 
-    annotated_frame = frame.copy()
+    if heatmap is not None and len(tracks) > 0:
+        heatmap.update(tracks, class_filter=[0])  # people only
+
+    annotated_frame = heatmap.render(frame.copy()) if heatmap is not None else frame.copy()
 
     if len(tracks) > 0:
         for track in tracks:
@@ -245,6 +251,9 @@ while cap.isOpened():
 video_writer.release()
 cap.release()
 cv2.destroyAllWindows()
+
+if heatmap is not None:
+    heatmap.save(f"output/{input_name}_{timestamp}_heatmap.png")
 
 print("\n📊 --- FINAL DATA --- 📊")
 for cls_id in TARGET_CLASSES:
