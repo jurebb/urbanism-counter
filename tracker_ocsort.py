@@ -9,6 +9,7 @@ from ultralytics import YOLO
 from pathlib import Path
 from boxmot import DeepOcSort
 from heatmap import HeatmapAccumulator
+from feature_detector import FeatureDetector
 
 parser = argparse.ArgumentParser(description="Run YOLO tracker on a video.")
 parser.add_argument("video_path", type=str, help="Path to the input video file")
@@ -17,12 +18,20 @@ parser.add_argument("--heatmap", action="store_true", default=False, help="Overl
 parser.add_argument("--dwell", action="store_true", default=False, help="Heatmap counts only stationary positions (dwell mode)")
 parser.add_argument("--no-boxes", action="store_true", default=False, help="Hide bounding boxes and labels")
 parser.add_argument("--no-counter", action="store_true", default=False, help="Hide counts overlay in top right")
+parser.add_argument("--features", action="store_true", default=False, help="Detect and overlay static park features (benches, trees, etc.)")
 args = parser.parse_args()
 
 DETECTOR_MODEL   = "yolo11x.pt"
 IMGSZ            = 1440
 NMS_IOU          = 0.85
 HEATMAP_BLUR_RADIUS = 143  # None = auto (~2% of width); set e.g. w//20 for larger blobs
+FEATURE_CLASSES = [
+    "bench", "park bench", "picnic table",
+    "bare tree", "leafless tree", "tree trunk",
+    "street lamp", "street light", "light pole", "ornate lamp post",
+    "trash can", "litter bin", "fountain",
+]
+FEATURE_CONF    = 0.1
 
 # --- DeepOcSort config (best known) ---
 DS_REID_MODEL       = "osnet_x1_0_msmt17.pt"
@@ -72,6 +81,9 @@ output_path = f"output/{input_name}_{timestamp}_deepocsort.mp4"
 video_writer = cv2.VideoWriter(
     output_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h)
 )
+
+feature_detector = FeatureDetector(classes=FEATURE_CLASSES, conf=FEATURE_CONF) if args.features else None
+first_frame_done = False
 
 track_history = {}
 counted_ids = set()
@@ -144,6 +156,12 @@ while cap.isOpened():
         heatmap.update(tracks, class_filter=[0])  # people only
 
     annotated_frame = heatmap.render(frame.copy()) if heatmap is not None else frame.copy()
+
+    if feature_detector is not None:
+        if not first_frame_done:
+            feature_detector.detect(frame)
+            first_frame_done = True
+        annotated_frame = feature_detector.render(annotated_frame)
 
     if len(tracks) > 0:
         for track in tracks:
