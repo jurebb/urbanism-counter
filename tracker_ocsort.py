@@ -10,6 +10,7 @@ from pathlib import Path
 from boxmot import DeepOcSort
 from heatmap import HeatmapAccumulator
 from feature_detector import FeatureDetector
+from path_tracer import PathTracer
 
 parser = argparse.ArgumentParser(description="Run YOLO tracker on a video.")
 parser.add_argument("video_path", type=str, help="Path to the input video file")
@@ -19,6 +20,7 @@ parser.add_argument("--dwell", action="store_true", default=False, help="Heatmap
 parser.add_argument("--no-boxes", action="store_true", default=False, help="Hide bounding boxes and labels")
 parser.add_argument("--no-counter", action="store_true", default=False, help="Hide counts overlay in top right")
 parser.add_argument("--features", action="store_true", default=False, help="Detect and overlay static park features (benches, trees, etc.)")
+parser.add_argument("--paths", action="store_true", default=False, help="Overlay live path trails and save density image at end")
 args = parser.parse_args()
 
 DETECTOR_MODEL   = "yolo11x.pt"
@@ -32,6 +34,9 @@ FEATURE_CLASSES = [
     "trash can", "litter bin", "fountain",
 ]
 FEATURE_CONF    = 0.1
+PATH_TRAIL_LENGTH = 400  # frames to keep per live trail
+PATH_MAX_JUMP     = 50   # px — larger jump treated as ID theft, trail restarted
+PATH_DECAY_EVERY  = 10   # frames between decay steps for inactive trails (higher = longer persistence)
 
 # --- DeepOcSort config (best known) ---
 DS_REID_MODEL       = "osnet_x1_0_msmt17.pt"
@@ -83,6 +88,7 @@ video_writer = cv2.VideoWriter(
 )
 
 feature_detector = FeatureDetector(classes=FEATURE_CLASSES, conf=FEATURE_CONF) if args.features else None
+path_tracer = PathTracer(w, h, trail_length=PATH_TRAIL_LENGTH, max_jump=PATH_MAX_JUMP, decay_every=PATH_DECAY_EVERY) if args.paths else None
 first_frame_done = False
 
 track_history = {}
@@ -155,7 +161,13 @@ while cap.isOpened():
     if heatmap is not None and len(tracks) > 0:
         heatmap.update(tracks, class_filter=[0])  # people only
 
+    if path_tracer is not None and len(tracks) > 0:
+        path_tracer.update(tracks, class_filter=[0])  # people only
+
     annotated_frame = heatmap.render(frame.copy()) if heatmap is not None else frame.copy()
+
+    if path_tracer is not None:
+        annotated_frame = path_tracer.render(annotated_frame)
 
     if feature_detector is not None:
         if not first_frame_done:
@@ -256,6 +268,8 @@ while cap.isOpened():
             f"w_emb:       {DS_W_ASSOC_EMB}",
             f"alpha_emb:   {DS_ALPHA_FIXED_EMB}",
             f"heatmap:     {'dwell' if args.dwell else 'density' if args.heatmap else 'off'}",
+            f"paths:       {'on' if args.paths else 'off'} trail={PATH_TRAIL_LENGTH} jump={PATH_MAX_JUMP} decay={PATH_DECAY_EVERY}",
+            f"features:    {'on' if args.features else 'off'} conf={FEATURE_CONF}",
         ]
         font, fscale, thick = cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1
         pad, line_h = 6, 18
@@ -279,6 +293,9 @@ cv2.destroyAllWindows()
 
 if heatmap is not None:
     heatmap.save(f"output/{input_name}_{timestamp}_heatmap.png")
+
+if path_tracer is not None:
+    path_tracer.save(f"output/{input_name}_{timestamp}_paths.png")
 
 print("\n📊 --- FINAL DATA --- 📊")
 for cls_id in TARGET_CLASSES:
