@@ -27,7 +27,7 @@ DETECTOR_MODEL   = "yolo11x.pt"
 IMGSZ            = 1440
 NMS_IOU          = 0.85
 HEATMAP_BLUR_RADIUS = 143  # None = auto (~2% of width); set e.g. w//20 for larger blobs
-FEATURE_CONF  = 0.1
+FEATURE_CONF  = 0.08
 FEATURE_IMGSZ = 1280
 PATH_TRAIL_LENGTH = 400  # frames to keep per live trail
 PATH_MAX_JUMP     = 50   # px — larger jump treated as ID theft, trail restarted
@@ -167,7 +167,9 @@ while cap.isOpened():
     if feature_detector is not None:
         if not first_frame_done:
             feature_detector.detect(frame)
+            feature_detector.print_summary()
             feature_detector.save(frame, f"output/{input_name}_{timestamp}_features.png")
+            feature_detector.save_summary(f"output/{input_name}_{timestamp}_features.txt")
             first_frame_done = True
         annotated_frame = feature_detector.render(annotated_frame)
 
@@ -215,38 +217,44 @@ while cap.isOpened():
                         )
 
     if not args.no_counter:
+        feature_counts = feature_detector.count_summary() if feature_detector is not None else {}
+        feature_lines = [f"{cat}: {n}" for cat, n in sorted(feature_counts.items())]
+
+        FS = 1.15
+        LINE_H = 42
+        PAD_X = w - 395
+        font = cv2.FONT_HERSHEY_SIMPLEX
+
+        MARGIN = 16
+        counts_rows = 1 + len(TARGET_CLASSES) + 1  # header + classes + TOTAL
+        counts_height = MARGIN + counts_rows * LINE_H + MARGIN
         overlay = annotated_frame.copy()
-        box_width = 400
-        box_height = 410
-        color = (162, 86, 26)
-        cv2.rectangle(
-            overlay, (w - box_width - 20, 20), (w - 20, 20 + box_height), color, -1
-        )
+        cv2.rectangle(overlay, (PAD_X - 15, 10), (w - 10, 10 + counts_height), (162, 86, 26), -1)
         cv2.addWeighted(overlay, 0.7, annotated_frame, 0.3, 0, annotated_frame)
 
-        y_offset = 55
-        cv2.putText(
-            annotated_frame, "--- COUNTS ---",
-            (w - box_width - 5, y_offset),
-            cv2.FONT_HERSHEY_SIMPLEX, 1.15, (255, 255, 255), 2,
-        )
-        y_offset += 45
-
+        y = 10 + MARGIN + LINE_H - 6
+        cv2.putText(annotated_frame, "--- COUNTS ---", (PAD_X, y), font, FS, (255, 255, 255), 2)
+        y += LINE_H
         for cls_id in TARGET_CLASSES:
-            name = CLASS_NAMES[cls_id]
-            count = class_counts[cls_id]
-            cv2.putText(
-                annotated_frame, f"{name}: {count}",
-                (w - box_width - 5, y_offset),
-                cv2.FONT_HERSHEY_SIMPLEX, 1.15, (230, 248, 255), 1,
-            )
-            y_offset += 42
+            cv2.putText(annotated_frame, f"{CLASS_NAMES[cls_id]}: {class_counts[cls_id]}",
+                        (PAD_X, y), font, FS, (230, 248, 255), 1)
+            y += LINE_H
+        cv2.putText(annotated_frame, f"TOTAL: {len(counted_ids)}", (PAD_X, y), font, 1.25, (255, 255, 255), 2)
 
-        cv2.putText(
-            annotated_frame, f"TOTAL: {len(counted_ids)}",
-            (w - box_width - 5, y_offset + 10),
-            cv2.FONT_HERSHEY_SIMPLEX, 1.25, (255, 255, 255), 2,
-        )
+        if feature_lines:
+            feat_top = 10 + counts_height + 10
+            feat_rows = 1 + len(feature_lines)  # header + lines
+            feat_height = MARGIN + feat_rows * LINE_H + MARGIN
+            overlay2 = annotated_frame.copy()
+            cv2.rectangle(overlay2, (PAD_X - 15, feat_top), (w - 10, feat_top + feat_height), (162, 86, 26), -1)
+            cv2.addWeighted(overlay2, 0.7, annotated_frame, 0.3, 0, annotated_frame)
+
+            y = feat_top + MARGIN + LINE_H - 6
+            cv2.putText(annotated_frame, "--- FEATURES ---", (PAD_X, y), font, FS, (255, 255, 255), 2)
+            y += LINE_H
+            for line in feature_lines:
+                cv2.putText(annotated_frame, line, (PAD_X, y), font, FS, (230, 248, 255), 1)
+                y += LINE_H
 
     if args.show_config:
         config_lines = [
