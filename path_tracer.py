@@ -20,7 +20,8 @@ class PathTracer:
         tracer.save("output/paths.png")
     """
 
-    TRAIL_COLOR  = (80, 220, 255)  # bright orange-yellow trail
+    TRAIL_TAIL   = (230, 248, 255)   # Stucco  #FFF8E6 — trail tail (old)
+    TRAIL_HEAD   = (79,  182, 235)   # Daylight #EBB64F — trail head (recent)
     DENSITY_CMAP = cv2.COLORMAP_HOT
 
     MIN_HOLD_FRAMES = 600  # frames an inactive trail is frozen before decay starts
@@ -103,9 +104,9 @@ class PathTracer:
             if len(trail) < 2:
                 continue
             for i in range(1, len(trail)):
-                t = 0.3 + 0.7 * (i / len(trail))  # 0.3→1.0, tail stays visible
-                color = tuple(int(c * t) for c in self.TRAIL_COLOR)
-                thickness = max(2, int(t * 8))
+                t = i / len(trail)  # 0→1, tail→head
+                color = tuple(int(self.TRAIL_TAIL[c] + t * (self.TRAIL_HEAD[c] - self.TRAIL_TAIL[c])) for c in range(3))
+                thickness = max(2, int(0.3 + t * 7))
                 cv2.line(overlay, trail[i - 1], trail[i], color, thickness, cv2.LINE_AA)
         cv2.addWeighted(overlay, self.alpha, frame, 1 - self.alpha, 0, frame)
         return frame

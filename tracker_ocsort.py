@@ -112,13 +112,13 @@ TIME_THRESHOLD = 7
 DISTANCE_THRESHOLD = 10
 
 CLASS_COLORS = {
-    0: (255, 100, 0),    # blue — people
-    1: (0, 220, 220),    # yellow — bicycles
-    2: (0, 180, 255),    # orange — cars
-    3: (0, 100, 255),    # red-orange — motorcycles
-    5: (50, 50, 255),    # red — buses
-    6: (200, 0, 200),    # magenta — trains
-    7: (0, 150, 100),    # dark green — trucks
+    0: (237, 191, 148),  # Sky      #94BFED — people
+    1: (79, 182, 235),   # Daylight #EBB64F — bicycles
+    2: (36, 98, 208),    # Terracotta #D06224 — cars
+    3: (0, 46, 234),     # Redline  #EA2E00 — motorcycles
+    5: (162, 86, 26),    # Blueprint #1A56A2 — buses
+    6: (61, 118, 52),    # Garden   #34763D — trains
+    7: (61, 118, 52),    # Garden   #34763D — trucks
 }
 
 print(f"Running {tracker_label} Tracking...")
@@ -242,7 +242,7 @@ while cap.isOpened():
             cv2.putText(
                 annotated_frame, f"{name}: {count}",
                 (w - box_width - 5, y_offset),
-                cv2.FONT_HERSHEY_SIMPLEX, 1.15, (200, 255, 200), 1,
+                cv2.FONT_HERSHEY_SIMPLEX, 1.15, (230, 248, 255), 1,
             )
             y_offset += 42
 

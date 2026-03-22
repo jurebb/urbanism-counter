@@ -7,24 +7,24 @@ DEFAULT_CLASSES = [
 ]
 
 FEATURE_COLORS = {
-    # seating
-    "bench":             (0, 255, 150),
-    "park bench":        (0, 255, 150),
-    "picnic table":      (0, 255, 150),
-    # trees
-    "bare tree":         (0, 200, 0),
-    "leafless tree":     (0, 200, 0),
-    "tree trunk":        (0, 180, 0),
-    # lighting
-    "street lamp":       (200, 200, 0),
-    "street light":      (200, 200, 0),
-    "light pole":        (200, 200, 0),
-    "ornate lamp post":  (200, 200, 0),
-    # waste
-    "trash can":         (150, 150, 150),
-    "litter bin":        (150, 150, 150),
-    # water
-    "fountain":          (255, 200, 0),
+    # seating — Terracotta #D06224
+    "bench":             (36, 98, 208),
+    "park bench":        (36, 98, 208),
+    "picnic table":      (36, 98, 208),
+    # trees — Garden #34763D
+    "bare tree":         (61, 118, 52),
+    "leafless tree":     (61, 118, 52),
+    "tree trunk":        (61, 118, 52),
+    # lighting — Daylight #EBB64F
+    "street lamp":       (79, 182, 235),
+    "street light":      (79, 182, 235),
+    "light pole":        (79, 182, 235),
+    "ornate lamp post":  (79, 182, 235),
+    # waste — Sky #94BFED
+    "trash can":         (237, 191, 148),
+    "litter bin":        (237, 191, 148),
+    # water — Blueprint #1A56A2
+    "fountain":          (162, 86, 26),
 }
 
 
