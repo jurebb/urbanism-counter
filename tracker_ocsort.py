@@ -167,6 +167,7 @@ while cap.isOpened():
     if feature_detector is not None:
         if not first_frame_done:
             feature_detector.detect(frame)
+            feature_detector.save(frame, f"output/{input_name}_{timestamp}_features.png")
             first_frame_done = True
         annotated_frame = feature_detector.render(annotated_frame)
 

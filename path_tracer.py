@@ -25,6 +25,7 @@ class PathTracer:
     DENSITY_CMAP = cv2.COLORMAP_HOT
 
     MIN_HOLD_FRAMES = 600  # frames an inactive trail is frozen before decay starts
+    SMOOTH_WINDOW   = 9    # moving-average window for trail rendering (odd recommended)
 
     def __init__(self, width: int, height: int, trail_length: int = 60,
                  max_jump: int = 120, decay_every: int = 10, alpha: float = 0.6, grid_scale: float = 0.5):
@@ -42,6 +43,7 @@ class PathTracer:
         self.density = np.zeros((self.gh, self.gw), dtype=np.float32)
 
         self._trails: dict = defaultdict(list)  # track_id -> [(x, y), ...]
+        self._prev_grid: dict = {}               # track_id -> (gx, gy) for line drawing
         self._inactive_since: dict = {}          # tid -> frame when it went inactive
         self._frame_count = 0
 
@@ -76,11 +78,17 @@ class PathTracer:
             if len(trail) > self.trail_length:
                 trail.pop(0)
 
-            # accumulate into density grid
+            # accumulate line segments into density grid
             gx = int(cx * self.grid_scale)
             gy = int(cy * self.grid_scale)
-            if 0 <= gx < self.gw and 0 <= gy < self.gh:
+            gx = max(0, min(gx, self.gw - 1))
+            gy = max(0, min(gy, self.gh - 1))
+            if track_id in self._prev_grid:
+                pgx, pgy = self._prev_grid[track_id]
+                cv2.line(self.density, (pgx, pgy), (gx, gy), 1.0, 1)
+            else:
                 self.density[gy, gx] += 1
+            self._prev_grid[track_id] = (gx, gy)
 
         # decay inactive trails: hold for MIN_HOLD_FRAMES, then decay
         if self._frame_count % self.decay_every == 0:
@@ -94,8 +102,27 @@ class PathTracer:
                         else:
                             del self._trails[tid]
                             del self._inactive_since[tid]
+                            self._prev_grid.pop(tid, None)
                 else:
                     self._inactive_since.pop(tid, None)
+
+    @staticmethod
+    def _smooth(trail, window: int) -> list:
+        """Apply moving-average smoothing to a trail."""
+        n = len(trail)
+        if n < 3 or window < 3:
+            return trail
+        w = min(window, n)
+        if w % 2 == 0:
+            w -= 1
+        half = w // 2
+        arr = np.array(trail, dtype=float)
+        # pad with edge values (not zeros) to avoid pulling trail ends toward origin
+        padded = np.pad(arr, ((half, half), (0, 0)), mode='edge')
+        kernel = np.ones(w) / w
+        xs = np.convolve(padded[:, 0], kernel, mode='valid')
+        ys = np.convolve(padded[:, 1], kernel, mode='valid')
+        return list(zip(xs.astype(int), ys.astype(int)))
 
     def render(self, frame: np.ndarray) -> np.ndarray:
         """Draw live fading trails. Inactive trails decay naturally via update()."""
@@ -103,17 +130,20 @@ class PathTracer:
         for tid, trail in self._trails.items():
             if len(trail) < 2:
                 continue
-            for i in range(1, len(trail)):
-                t = i / len(trail)  # 0→1, tail→head
+            pts = self._smooth(trail, self.SMOOTH_WINDOW)
+            for i in range(1, len(pts)):
+                t = i / len(pts)  # 0→1, tail→head
                 color = tuple(int(self.TRAIL_TAIL[c] + t * (self.TRAIL_HEAD[c] - self.TRAIL_TAIL[c])) for c in range(3))
                 thickness = max(2, int(0.3 + t * 7))
-                cv2.line(overlay, trail[i - 1], trail[i], color, thickness, cv2.LINE_AA)
+                cv2.line(overlay, pts[i - 1], pts[i], color, thickness, cv2.LINE_AA)
         cv2.addWeighted(overlay, self.alpha, frame, 1 - self.alpha, 0, frame)
         return frame
 
-    def _density_to_image(self) -> np.ndarray:
+    def _density_to_image(self, blur_r: int = None) -> np.ndarray:
         """Shared: blur → log scale → normalize → colormap → full res."""
-        blur_r = max(5, (self.gw // 30) | 1)
+        if blur_r is None:
+            blur_r = max(5, (self.gw // 30) | 1)
+        blur_r = blur_r if blur_r % 2 == 1 else blur_r + 1
         blurred = cv2.GaussianBlur(self.density, (blur_r, blur_r), 0)
         log_scaled = np.log1p(blurred)
         normalized = cv2.normalize(log_scaled, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
@@ -134,6 +164,6 @@ class PathTracer:
         """Save standalone accumulated density image (desire lines map)."""
         if self.density.max() == 0:
             return
-        colored, _ = self._density_to_image()
+        colored, _ = self._density_to_image(blur_r=3)  # minimal blur — keep lines sharp
         cv2.imwrite(path, colored)
         print(f"Path density saved: {path}")

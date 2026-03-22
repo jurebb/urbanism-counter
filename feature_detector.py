@@ -81,6 +81,11 @@ class FeatureDetector:
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
         return frame
 
+    def save(self, frame: np.ndarray, path: str):
+        """Save feature detections rendered onto frame as a PNG."""
+        cv2.imwrite(path, self.render(frame.copy()))
+        print(f"Features saved: {path}")
+
     def nearest(self, cx: float, cy: float) -> tuple:
         """Return (label, distance_px) of nearest feature to (cx, cy).
 
