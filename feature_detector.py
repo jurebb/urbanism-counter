@@ -2,29 +2,30 @@ import cv2
 import numpy as np
 from ultralytics import YOLOWorld
 
-DEFAULT_CLASSES = [
-    "bench", "park bench", "tree", "fountain", "trash can", "lamp post", "bicycle rack",
-]
-
 FEATURE_COLORS = {
     # seating — Terracotta #D06224
-    "bench":             (36, 98, 208),
-    "park bench":        (36, 98, 208),
-    "picnic table":      (36, 98, 208),
+    "bench":                  (36, 98, 208),
+    "park bench":             (36, 98, 208),
+    "picnic table":           (36, 98, 208),
     # trees — Garden #34763D
-    "bare tree":         (61, 118, 52),
-    "leafless tree":     (61, 118, 52),
-    "tree trunk":        (61, 118, 52),
+    "bare tree":              (61, 118, 52),
+    "leafless tree":          (61, 118, 52),
+    "winter tree":            (61, 118, 52),
+    "tree trunk":             (61, 118, 52),
+    "plaza tree":             (61, 118, 52),
+    "deciduous tree":         (61, 118, 52),
+    "street tree":            (61, 118, 52),
+    "tree":                   (61, 118, 52),
+    "urban tree":             (61, 118, 52),
+    "bare branch tree":       (61, 118, 52),
+    "leafless street tree":   (61, 118, 52),
     # lighting — Daylight #EBB64F
-    "street lamp":       (79, 182, 235),
-    "street light":      (79, 182, 235),
-    "light pole":        (79, 182, 235),
-    "ornate lamp post":  (79, 182, 235),
+    "ornate street lamp":     (79, 182, 235),
     # waste — Sky #94BFED
-    "trash can":         (237, 191, 148),
-    "litter bin":        (237, 191, 148),
+    "street bin":             (237, 191, 148),
+    "outdoor waste bin":      (237, 191, 148),
     # water — Blueprint #1A56A2
-    "fountain":          (162, 86, 26),
+    "fountain":               (162, 86, 26),
 }
 
 
@@ -39,10 +40,11 @@ class FeatureDetector:
         label, dist = detector.nearest(cx, cy)  # hook for proximity/clustering
     """
 
-    def __init__(self, classes: list = None, conf: float = 0.1,
+    def __init__(self, classes: list = None, conf: float = 0.1, imgsz: int = 1280,
                  model_name: str = "yolov8x-worldv2.pt"):
-        self.classes = classes or DEFAULT_CLASSES
+        self.classes = classes or list(FEATURE_COLORS.keys())
         self.conf = conf
+        self.imgsz = imgsz
         self.model = YOLOWorld(model_name)
         self.model.set_classes(self.classes)
         self.detections: list = []
@@ -53,7 +55,7 @@ class FeatureDetector:
         Each detection: {label, x, y, x1, y1, x2, y2, conf}
         Call once on first/reference frame for a static camera.
         """
-        results = self.model.predict(frame, conf=self.conf, verbose=False)
+        results = self.model.predict(frame, conf=self.conf, imgsz=self.imgsz, iou=0.3, verbose=False)
         self.detections = []
         for box in results[0].boxes:
             cls_id = int(box.cls[0])

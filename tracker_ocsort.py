@@ -27,13 +27,8 @@ DETECTOR_MODEL   = "yolo11x.pt"
 IMGSZ            = 1440
 NMS_IOU          = 0.85
 HEATMAP_BLUR_RADIUS = 143  # None = auto (~2% of width); set e.g. w//20 for larger blobs
-FEATURE_CLASSES = [
-    "bench", "park bench", "picnic table",
-    "bare tree", "leafless tree", "tree trunk",
-    "street lamp", "street light", "light pole", "ornate lamp post",
-    "trash can", "litter bin", "fountain",
-]
-FEATURE_CONF    = 0.1
+FEATURE_CONF  = 0.1
+FEATURE_IMGSZ = 1280
 PATH_TRAIL_LENGTH = 400  # frames to keep per live trail
 PATH_MAX_JUMP     = 50   # px — larger jump treated as ID theft, trail restarted
 PATH_DECAY_EVERY  = 10   # frames between decay steps for inactive trails (higher = longer persistence)
@@ -87,7 +82,7 @@ video_writer = cv2.VideoWriter(
     output_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h)
 )
 
-feature_detector = FeatureDetector(classes=FEATURE_CLASSES, conf=FEATURE_CONF) if args.features else None
+feature_detector = FeatureDetector(conf=FEATURE_CONF, imgsz=FEATURE_IMGSZ) if args.features else None
 path_tracer = PathTracer(w, h, trail_length=PATH_TRAIL_LENGTH, max_jump=PATH_MAX_JUMP, decay_every=PATH_DECAY_EVERY) if args.paths else None
 first_frame_done = False
 
