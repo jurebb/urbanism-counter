@@ -64,18 +64,17 @@ class PathTracer:
             trail = self._trails[track_id]
             active_ids.add(track_id)
 
-            # inertia: large jumps slide toward new position instead of cutting
+            # large jump = likely ID swap; insert break rather than connecting the gap
             if trail:
-                lx, ly = trail[-1]
-                dx, dy = cx - lx, cy - ly
-                dist = (dx * dx + dy * dy) ** 0.5
-                if dist > self.max_jump:
-                    t = self.max_jump / dist  # fraction: bigger jump = smaller step
-                    cx = int(lx + dx * t)
-                    cy = int(ly + dy * t)
+                last = trail[-1]
+                if last is not None:
+                    lx, ly = last
+                    if (cx - lx) ** 2 + (cy - ly) ** 2 > self.max_jump ** 2:
+                        trail.append(None)
+                        self._prev_grid.pop(track_id, None)
 
             trail.append((cx, cy))
-            if len(trail) > self.trail_length:
+            while sum(1 for p in trail if p is not None) > self.trail_length:
                 trail.pop(0)
 
             # accumulate line segments into density grid
@@ -107,22 +106,41 @@ class PathTracer:
                     self._inactive_since.pop(tid, None)
 
     @staticmethod
-    def _smooth(trail, window: int) -> list:
-        """Apply moving-average smoothing to a trail."""
-        n = len(trail)
+    def _smooth_segment(seg: list, window: int) -> list:
+        n = len(seg)
         if n < 3 or window < 3:
-            return trail
+            return seg
         w = min(window, n)
         if w % 2 == 0:
             w -= 1
         half = w // 2
-        arr = np.array(trail, dtype=float)
-        # pad with edge values (not zeros) to avoid pulling trail ends toward origin
+        arr = np.array(seg, dtype=float)
         padded = np.pad(arr, ((half, half), (0, 0)), mode='edge')
         kernel = np.ones(w) / w
         xs = np.convolve(padded[:, 0], kernel, mode='valid')
         ys = np.convolve(padded[:, 1], kernel, mode='valid')
         return list(zip(xs.astype(int), ys.astype(int)))
+
+    @staticmethod
+    def _smooth(trail, window: int) -> list:
+        """Smooth trail, preserving None break markers as segment boundaries."""
+        segments, current = [], []
+        for pt in trail:
+            if pt is None:
+                if current:
+                    segments.append(current)
+                current = []
+            else:
+                current.append(pt)
+        if current:
+            segments.append(current)
+
+        result = []
+        for i, seg in enumerate(segments):
+            if i > 0:
+                result.append(None)
+            result.extend(PathTracer._smooth_segment(seg, window))
+        return result
 
     def render(self, frame: np.ndarray) -> np.ndarray:
         """Draw live fading trails. Inactive trails decay naturally via update()."""
@@ -132,6 +150,8 @@ class PathTracer:
                 continue
             pts = self._smooth(trail, self.SMOOTH_WINDOW)
             for i in range(1, len(pts)):
+                if pts[i - 1] is None or pts[i] is None:
+                    continue
                 t = i / len(pts)  # 0→1, tail→head
                 color = tuple(int(self.TRAIL_TAIL[c] + t * (self.TRAIL_HEAD[c] - self.TRAIL_TAIL[c])) for c in range(3))
                 thickness = max(2, int(0.3 + t * 7))
