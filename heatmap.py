@@ -4,10 +4,40 @@ import numpy as np
 from collections import deque
 
 
+def _studio_leonardo_cmap() -> np.ndarray:
+    """Multi-stop colormap through Studio Leonardo palette (BGR), no Steel.
+
+    Stops: black → Blueprint → Sky → Daylight → Terracotta → Redline
+    """
+    # (B, G, R)
+    stops = [
+        (0,   (162, 86,  26 )),   # Blueprint  #1A56A2 — low density
+        (0.40,(237, 191, 148)),   # Sky        #94BFED
+        (0.62,(79,  182, 235)),   # Daylight   #EBB64F
+        (0.80,(36,  98,  208)),   # Terracotta #D06224
+        (1.0, (0,   46,  234)),   # Redline    #EA2E00
+    ]
+    lut = np.zeros((256, 1, 3), dtype=np.uint8)
+    for i in range(256):
+        t = i / 255.0
+        # find the two surrounding stops
+        for k in range(len(stops) - 1):
+            t0, c0 = stops[k]
+            t1, c1 = stops[k + 1]
+            if t0 <= t <= t1:
+                alpha = (t - t0) / (t1 - t0)
+                lut[i, 0] = tuple(int(c0[c] + alpha * (c1[c] - c0[c])) for c in range(3))
+                break
+    return lut
+
+
+STUDIO_CMAP = _studio_leonardo_cmap()
+
+
 class HeatmapAccumulator:
     """Accumulates track centre-point positions and renders a live heatmap overlay."""
 
-    def __init__(self, width: int, height: int, blur_radius: int = None, alpha: float = 0.5,
+    def __init__(self, width: int, height: int, blur_radius: int = None, alpha: float = 0.72,
                  dwell_only: bool = False, dwell_threshold: float = 6.0):
         self.width = width
         self.height = height
@@ -55,7 +85,7 @@ class HeatmapAccumulator:
         blurred = cv2.GaussianBlur(self.accumulator, (self.blur_radius, self.blur_radius), 0)
         log_scaled = np.log1p(blurred)  # compress range so new/sparse contributors stay visible
         normalized = cv2.normalize(log_scaled, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-        return cv2.applyColorMap(normalized, cv2.COLORMAP_JET), normalized
+        return cv2.applyColorMap(normalized, STUDIO_CMAP), normalized
 
     def render(self, frame: np.ndarray) -> np.ndarray:
         """Return frame with heatmap blended on top."""
