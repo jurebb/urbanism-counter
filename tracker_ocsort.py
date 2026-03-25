@@ -20,6 +20,7 @@ parser.add_argument("--dwell", action="store_true", default=False, help="Heatmap
 parser.add_argument("--no-boxes", action="store_true", default=False, help="Hide bounding boxes and labels")
 parser.add_argument("--no-counter", action="store_true", default=False, help="Hide counts overlay in top right")
 parser.add_argument("--features", action="store_true", default=False, help="Detect and overlay static park features (benches, trees, etc.)")
+parser.add_argument("--features-filter", nargs="+", default=None, metavar="CAT", help="Show only these feature categories e.g. --features-filter Seating Lamps")
 parser.add_argument("--paths", action="store_true", default=False, help="Overlay live path trails and save density image at end")
 args = parser.parse_args()
 
@@ -171,7 +172,7 @@ while cap.isOpened():
             feature_detector.save(frame, f"output/{input_name}_{timestamp}_features.png")
             feature_detector.save_summary(f"output/{input_name}_{timestamp}_features.txt")
             first_frame_done = True
-        annotated_frame = feature_detector.render(annotated_frame)
+        annotated_frame = feature_detector.render(annotated_frame, categories=args.features_filter)
 
     if len(tracks) > 0:
         for track in tracks:
@@ -233,7 +234,7 @@ while cap.isOpened():
         cv2.addWeighted(overlay, 0.7, annotated_frame, 0.3, 0, annotated_frame)
 
         y = 10 + MARGIN + LINE_H - 6
-        cv2.putText(annotated_frame, "--- COUNTS ---", (PAD_X, y), font, FS, (255, 255, 255), 2)
+        cv2.putText(annotated_frame, "> TRACKER:", (PAD_X, y), font, FS, (255, 255, 255), 2)
         y += LINE_H
         for cls_id in TARGET_CLASSES:
             cv2.putText(annotated_frame, f"{CLASS_NAMES[cls_id]}: {class_counts[cls_id]}",
@@ -250,7 +251,7 @@ while cap.isOpened():
             cv2.addWeighted(overlay2, 0.7, annotated_frame, 0.3, 0, annotated_frame)
 
             y = feat_top + MARGIN + LINE_H - 6
-            cv2.putText(annotated_frame, "--- FEATURES ---", (PAD_X, y), font, FS, (255, 255, 255), 2)
+            cv2.putText(annotated_frame, "> FEATURES:", (PAD_X, y), font, FS, (255, 255, 255), 2)
             y += LINE_H
             for line in feature_lines:
                 cv2.putText(annotated_frame, line, (PAD_X, y), font, FS, (230, 248, 255), 1)

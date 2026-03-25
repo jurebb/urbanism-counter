@@ -3,10 +3,10 @@ import numpy as np
 from ultralytics import YOLOWorld
 
 FEATURE_COLORS = {
-    # seating — Terracotta #D06224
-    "bench":                  (36, 98, 208),
-    "park bench":             (36, 98, 208),
-    "picnic table":           (36, 98, 208),
+    # seating — Daylight #EBB64F (prominent, warm yellow)
+    "bench":                  (79, 182, 235),
+    "park bench":             (79, 182, 235),
+    "picnic table":           (79, 182, 235),
     # trees — Garden #34763D
     "bare tree":              (61, 118, 52),
     "leafless tree":          (61, 118, 52),
@@ -19,8 +19,8 @@ FEATURE_COLORS = {
     "urban tree":             (61, 118, 52),
     "bare branch tree":       (61, 118, 52),
     "leafless street tree":   (61, 118, 52),
-    # lighting — Daylight #EBB64F
-    "ornate street lamp":     (79, 182, 235),
+    # lighting — Terracotta #D06224 (demoted)
+    "ornate street lamp":     (36, 98, 208),
     # waste — Sky #94BFED
     "street bin":             (237, 191, 148),
     "outdoor waste bin":      (237, 191, 148),
@@ -161,20 +161,26 @@ class FeatureDetector:
                 f.write(f"{cat}: {n}\n")
         print(f"Feature summary saved: {path}")
 
-    def render(self, frame: np.ndarray) -> np.ndarray:
-        """Draw feature markers on frame."""
+    def render(self, frame: np.ndarray, categories: list = None) -> np.ndarray:
+        """Draw feature markers on frame. Pass categories to show only a subset (e.g. ['Seating'])."""
         for det in self.detections:
+            if categories is not None and det["category"] not in categories:
+                continue
             color = FEATURE_COLORS.get(det["label"], (200, 200, 200))
-            cv2.rectangle(frame, (det["x1"], det["y1"]), (det["x2"], det["y2"]), color, 2)
+            cv2.rectangle(frame, (det["x1"], det["y1"]), (det["x2"], det["y2"]), color, 4)
             cv2.circle(frame, (det["x"], det["y"]), 6, color, -1)
             cv2.putText(frame, det["label"], (det["x1"], det["y1"] - 6),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
         return frame
 
     def save(self, frame: np.ndarray, path: str):
-        """Save feature detections rendered onto frame as a PNG."""
+        """Save two PNGs: one overlaid on frame, one on black background (like paths)."""
         cv2.imwrite(path, self.render(frame.copy()))
         print(f"Features saved: {path}")
+        black = np.zeros_like(frame)
+        black_path = path.replace(".png", "_black.png")
+        cv2.imwrite(black_path, self.render(black))
+        print(f"Features (black bg) saved: {black_path}")
 
     def nearest(self, cx: float, cy: float) -> tuple:
         """Return (label, distance_px) of nearest feature to (cx, cy).
