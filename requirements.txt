@@ -1,0 +1,8 @@
+torch==2.8.0
+torchvision==0.23.0
+ultralytics==8.4.19
+boxmot==16.0.11
+opencv-python==4.13.0.92
+numpy==2.0.2
+matplotlib==3.9.4
+pytest==8.4.2
