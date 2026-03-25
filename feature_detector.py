@@ -155,7 +155,7 @@ class FeatureDetector:
         """Save feature counts to a text file."""
         counts = self.count_summary()
         with open(path, "w") as f:
-            f.write("Feature counts (deduplicated)\n")
+            f.write("Feature counts \n")
             f.write("=" * 30 + "\n")
             for cat, n in sorted(counts.items()):
                 f.write(f"{cat}: {n}\n")
@@ -173,13 +173,13 @@ class FeatureDetector:
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
         return frame
 
-    def save(self, frame: np.ndarray, path: str):
+    def save(self, frame: np.ndarray, path: str, categories: list = None):
         """Save two PNGs: one overlaid on frame, one on black background (like paths)."""
-        cv2.imwrite(path, self.render(frame.copy()))
+        cv2.imwrite(path, self.render(frame.copy(), categories=categories))
         print(f"Features saved: {path}")
         black = np.zeros_like(frame)
         black_path = path.replace(".png", "_black.png")
-        cv2.imwrite(black_path, self.render(black))
+        cv2.imwrite(black_path, self.render(black, categories=categories))
         print(f"Features (black bg) saved: {black_path}")
 
     def nearest(self, cx: float, cy: float) -> tuple:

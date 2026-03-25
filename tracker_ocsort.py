@@ -4,6 +4,7 @@ import math
 import torch
 import argparse
 import numpy as np
+from collections import namedtuple
 from datetime import datetime
 from ultralytics import YOLO
 from pathlib import Path
@@ -117,6 +118,42 @@ CLASS_COLORS = {
     7: (61, 118, 52),    # Garden   #34763D — trucks
 }
 
+FrameSample = namedtuple("FrameSample", ["t", "in_frame", "cumulative"])
+people_over_time: list[FrameSample] = []
+frame_index = 0
+
+TRACK_CLS_COL = 6   # column index for class ID in tracks array
+PERSON_CLS_ID = 0   # COCO class ID for person
+
+def log_people_stats(tracks: np.ndarray, frame_idx: int) -> None:
+    in_frame = int(np.sum(tracks[:, TRACK_CLS_COL] == PERSON_CLS_ID)) if len(tracks) > 0 else 0
+    people_over_time.append(FrameSample(t=frame_idx / fps, in_frame=in_frame, cumulative=len(counted_ids)))
+
+def save_people_plot(samples: list[FrameSample], path: str) -> None:
+    import matplotlib.pyplot as plt
+    BG     = "#1A56A2"   # Blueprint
+    C_LINE = "#FFF8E6"   # Stucco
+    C_TEXT = "#FFF8E6"
+
+    ts   = [s.t        for s in samples]
+    live = [s.in_frame for s in samples]
+
+    fig, ax = plt.subplots(figsize=(14, 5), facecolor=BG)
+    ax.set_facecolor(BG)
+    ax.plot(ts, live, color=C_LINE, linewidth=1.2)
+    ax.set_xlabel("Video position (s)", color=C_TEXT)
+    ax.set_ylabel("People in frame", color=C_TEXT)
+    ax.tick_params(colors=C_TEXT)
+    ax.set_xlim(ts[0], ts[-1])
+    ax.set_ylim(0)
+    for spine in ax.spines.values():
+        spine.set_edgecolor(C_TEXT)
+    fig.suptitle(f"{input_name} — People over time", color=C_TEXT)
+    fig.tight_layout()
+    fig.savefig(path, dpi=150, facecolor=BG)
+    plt.close(fig)
+    print(f"People plot saved: {path}")
+
 print(f"Running {tracker_label} Tracking...")
 
 while cap.isOpened():
@@ -154,6 +191,9 @@ while cap.isOpened():
         tracks = np.empty((0, 7))
     # tracks: [x1, y1, x2, y2, track_id, conf, cls, ...]
 
+    log_people_stats(tracks, frame_index)
+    frame_index += 1
+
     if heatmap is not None and len(tracks) > 0:
         heatmap.update(tracks, class_filter=[0])  # people only
 
@@ -169,7 +209,7 @@ while cap.isOpened():
         if not first_frame_done:
             feature_detector.detect(frame)
             feature_detector.print_summary()
-            feature_detector.save(frame, f"output/{input_name}_{timestamp}_features.png")
+            feature_detector.save(frame, f"output/{input_name}_{timestamp}_features.png", categories=args.features_filter)
             feature_detector.save_summary(f"output/{input_name}_{timestamp}_features.txt")
             first_frame_done = True
         annotated_frame = feature_detector.render(annotated_frame, categories=args.features_filter)
@@ -301,6 +341,9 @@ if heatmap is not None:
 
 if path_tracer is not None:
     path_tracer.save(f"output/{input_name}_{timestamp}_paths.png")
+
+if people_over_time:
+    save_people_plot(people_over_time, f"output/{input_name}_{timestamp}_people.png")
 
 print("\n📊 --- FINAL DATA --- 📊")
 for cls_id in TARGET_CLASSES:
