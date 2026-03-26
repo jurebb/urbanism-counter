@@ -22,6 +22,7 @@ parser.add_argument("--no-boxes", action="store_true", default=False, help="Hide
 parser.add_argument("--no-counter", action="store_true", default=False, help="Hide counts overlay in top right")
 parser.add_argument("--features", action="store_true", default=False, help="Detect and overlay static park features (benches, trees, etc.)")
 parser.add_argument("--features-filter", nargs="+", default=None, metavar="CAT", help="Show only these feature categories e.g. --features-filter Seating Lamps")
+parser.add_argument("--features-frame", type=int, default=0, metavar="N", help="Frame number to use for feature detection (default: 0)")
 parser.add_argument("--paths", action="store_true", default=False, help="Overlay live path trails and save density image at end")
 args = parser.parse_args()
 
@@ -85,6 +86,14 @@ os.makedirs(supplements_dir, exist_ok=True)
 video_writer = cv2.VideoWriter(
     output_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h)
 )
+
+if args.features and args.features_frame > 0:
+    cap.set(cv2.CAP_PROP_POS_FRAMES, args.features_frame)
+    ret, _features_frame = cap.read()
+    assert ret, f"Could not read frame {args.features_frame} for feature detection"
+    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+else:
+    _features_frame = None
 
 feature_detector = FeatureDetector(conf=FEATURE_CONF, imgsz=FEATURE_IMGSZ) if args.features else None
 path_tracer = PathTracer(w, h, trail_length=PATH_TRAIL_LENGTH, max_jump=PATH_MAX_JUMP, decay_every=PATH_DECAY_EVERY) if args.paths else None
@@ -209,7 +218,7 @@ while cap.isOpened():
 
     if feature_detector is not None:
         if not first_frame_done:
-            feature_detector.detect(frame)
+            feature_detector.detect(_features_frame if _features_frame is not None else frame)
             feature_detector.print_summary()
             feature_detector.save(frame, f"{supplements_dir}/features.png", categories=args.features_filter)
             feature_detector.save_summary(f"{supplements_dir}/features.txt")
