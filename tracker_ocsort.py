@@ -31,7 +31,7 @@ IMGSZ            = 1440
 NMS_IOU          = 0.85
 HEATMAP_BLUR_RADIUS = 143  # None = auto (~2% of width); set e.g. w//20 for larger blobs
 FEATURE_CONF  = 0.08
-FEATURE_IMGSZ = 1280
+FEATURE_IMGSZ = 1920
 PATH_TRAIL_LENGTH = 400  # frames to keep per live trail
 PATH_MAX_JUMP     = 50   # px — larger jump treated as ID theft, trail restarted
 PATH_DECAY_EVERY  = 10   # frames between decay steps for inactive trails (higher = longer persistence)
@@ -355,6 +355,13 @@ if path_tracer is not None:
 
 if people_over_time:
     save_people_plot(people_over_time, f"{supplements_dir}/people.png")
+
+counts_txt_path = f"{supplements_dir}/counts.txt"
+with open(counts_txt_path, "w") as f:
+    for cls_id in TARGET_CLASSES:
+        f.write(f"{CLASS_NAMES[cls_id]}: {class_counts[cls_id]}\n")
+    f.write(f"Total Unique Objects: {len(counted_ids)}\n")
+print(f"Counts saved: {counts_txt_path}")
 
 print("\n📊 --- FINAL DATA --- 📊")
 for cls_id in TARGET_CLASSES:
