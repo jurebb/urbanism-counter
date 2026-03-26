@@ -28,13 +28,15 @@ class PathTracer:
     SMOOTH_WINDOW   = 9    # moving-average window for trail rendering (odd recommended)
 
     def __init__(self, width: int, height: int, trail_length: int = 60,
-                 max_jump: int = 120, decay_every: int = 10, alpha: float = 0.6, grid_scale: float = 0.5):
+                 max_jump: int = 120, decay_every: int = 10, alpha: float = 0.6, grid_scale: float = 0.5,
+                 anchor: float = 0.125):
         self.width = width
         self.height = height
         self.trail_length = trail_length  # frames to keep per live trail
         self.max_jump = max_jump          # px threshold — jump larger than this restarts trail
         self.decay_every = decay_every    # frames between decay steps for inactive trails
         self.alpha = alpha                # blend strength for density overlay
+        self.anchor = anchor              # vertical fraction of bbox for trail point (0=top, 1=bottom)
 
         # grid_scale: downsample factor for density accumulator (0.5 = half res)
         self.gw = int(width * grid_scale)
@@ -59,7 +61,7 @@ class PathTracer:
             track_id = int(track[4])
             x1, y1, x2, y2 = int(track[0]), int(track[1]), int(track[2]), int(track[3])
             cx = (x1 + x2) // 2
-            cy = y1 + (y2 - y1) // 8  # near head, stable during occlusion
+            cy = y1 + int((y2 - y1) * self.anchor)
 
             trail = self._trails[track_id]
             active_ids.add(track_id)

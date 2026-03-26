@@ -67,6 +67,31 @@ class TestUpdate:
         assert real <= 5
 
 
+class TestAnchor:
+    def test_head_anchor_cy_near_top(self):
+        pt = PathTracer(500, 500, anchor=0.125)
+        t = np.array([make_track(100, 100, 200, 300, track_id=1)])
+        pt.update(t)
+        _, cy = pt._trails[1][0]
+        # y1=100, y2=300, height=200 → cy should be near 125 (0.125 * 200 + 100)
+        assert abs(cy - 125) <= 2
+
+    def test_feet_anchor_cy_near_bottom(self):
+        pt = PathTracer(500, 500, anchor=0.875)
+        t = np.array([make_track(100, 100, 200, 300, track_id=1)])
+        pt.update(t)
+        _, cy = pt._trails[1][0]
+        # y1=100, y2=300, height=200 → cy should be near 275 (0.875 * 200 + 100)
+        assert abs(cy - 275) <= 2
+
+    def test_mid_anchor_cy_at_center(self):
+        pt = PathTracer(500, 500, anchor=0.5)
+        t = np.array([make_track(100, 100, 200, 300, track_id=1)])
+        pt.update(t)
+        _, cy = pt._trails[1][0]
+        assert abs(cy - 200) <= 2
+
+
 class TestRender:
     def test_render_returns_same_shape(self):
         pt = PathTracer(200, 200)

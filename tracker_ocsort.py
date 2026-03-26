@@ -24,6 +24,7 @@ parser.add_argument("--features", action="store_true", default=False, help="Dete
 parser.add_argument("--features-filter", nargs="+", default=None, metavar="CAT", help="Show only these feature categories e.g. --features-filter Seating Lamps")
 parser.add_argument("--features-frame", type=int, default=0, metavar="N", help="Frame number to use for feature detection (default: 0)")
 parser.add_argument("--paths", action="store_true", default=False, help="Overlay live path trails and save density image at end")
+parser.add_argument("--paths-feet", action="store_true", default=False, help="Anchor path trails near feet instead of head")
 args = parser.parse_args()
 
 DETECTOR_MODEL   = "yolo11x.pt"
@@ -96,7 +97,8 @@ else:
     _features_frame = None
 
 feature_detector = FeatureDetector(conf=FEATURE_CONF, imgsz=FEATURE_IMGSZ) if args.features else None
-path_tracer = PathTracer(w, h, trail_length=PATH_TRAIL_LENGTH, max_jump=PATH_MAX_JUMP, decay_every=PATH_DECAY_EVERY) if args.paths else None
+path_tracer = PathTracer(w, h, trail_length=PATH_TRAIL_LENGTH, max_jump=PATH_MAX_JUMP, decay_every=PATH_DECAY_EVERY,
+                         anchor=0.875 if args.paths_feet else 0.125) if args.paths else None
 first_frame_done = False
 
 track_history = {}
