@@ -80,6 +80,8 @@ input_name = os.path.splitext(os.path.basename(video_path))[0]
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 os.makedirs("output", exist_ok=True)
 output_path = f"output/{input_name}_{timestamp}_deepocsort.mp4"
+supplements_dir = os.path.splitext(output_path)[0]
+os.makedirs(supplements_dir, exist_ok=True)
 video_writer = cv2.VideoWriter(
     output_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h)
 )
@@ -209,8 +211,8 @@ while cap.isOpened():
         if not first_frame_done:
             feature_detector.detect(frame)
             feature_detector.print_summary()
-            feature_detector.save(frame, f"output/{input_name}_{timestamp}_features.png", categories=args.features_filter)
-            feature_detector.save_summary(f"output/{input_name}_{timestamp}_features.txt")
+            feature_detector.save(frame, f"{supplements_dir}/features.png", categories=args.features_filter)
+            feature_detector.save_summary(f"{supplements_dir}/features.txt")
             first_frame_done = True
         annotated_frame = feature_detector.render(annotated_frame, categories=args.features_filter)
 
@@ -337,13 +339,13 @@ cap.release()
 cv2.destroyAllWindows()
 
 if heatmap is not None:
-    heatmap.save(f"output/{input_name}_{timestamp}_heatmap.png")
+    heatmap.save(f"{supplements_dir}/heatmap.png")
 
 if path_tracer is not None:
-    path_tracer.save(f"output/{input_name}_{timestamp}_paths.png")
+    path_tracer.save(f"{supplements_dir}/paths.png")
 
 if people_over_time:
-    save_people_plot(people_over_time, f"output/{input_name}_{timestamp}_people.png")
+    save_people_plot(people_over_time, f"{supplements_dir}/people.png")
 
 print("\n📊 --- FINAL DATA --- 📊")
 for cls_id in TARGET_CLASSES:
