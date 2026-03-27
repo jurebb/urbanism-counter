@@ -29,7 +29,7 @@ class PathTracer:
 
     def __init__(self, width: int, height: int, trail_length: int = 60,
                  max_jump: int = 120, decay_every: int = 10, alpha: float = 0.6, grid_scale: float = 0.5,
-                 anchor: float = 0.125):
+                 anchor: float = 0.125, y_inertia: float = 1.0):
         self.width = width
         self.height = height
         self.trail_length = trail_length  # frames to keep per live trail
@@ -37,6 +37,7 @@ class PathTracer:
         self.decay_every = decay_every    # frames between decay steps for inactive trails
         self.alpha = alpha                # blend strength for density overlay
         self.anchor = anchor              # vertical fraction of bbox for trail point (0=top, 1=bottom)
+        self.y_inertia = y_inertia        # EMA factor for cy: 1.0=raw, lower=more smoothing
 
         # grid_scale: downsample factor for density accumulator (0.5 = half res)
         self.gw = int(width * grid_scale)
@@ -46,6 +47,7 @@ class PathTracer:
 
         self._trails: dict = defaultdict(list)  # track_id -> [(x, y), ...]
         self._prev_grid: dict = {}               # track_id -> (gx, gy) for line drawing
+        self._cy_ema: dict = {}                  # track_id -> smoothed cy for y inertia
         self._inactive_since: dict = {}          # tid -> frame when it went inactive
         self._frame_count = 0
 
@@ -61,7 +63,13 @@ class PathTracer:
             track_id = int(track[4])
             x1, y1, x2, y2 = int(track[0]), int(track[1]), int(track[2]), int(track[3])
             cx = (x1 + x2) // 2
-            cy = y1 + int((y2 - y1) * self.anchor)
+            cy_raw = y1 + int((y2 - y1) * self.anchor)
+            if self.y_inertia < 1.0:
+                prev_cy = self._cy_ema.get(track_id, cy_raw)
+                cy = int(self.y_inertia * cy_raw + (1.0 - self.y_inertia) * prev_cy)
+                self._cy_ema[track_id] = cy
+            else:
+                cy = cy_raw
 
             trail = self._trails[track_id]
             active_ids.add(track_id)
@@ -74,6 +82,8 @@ class PathTracer:
                     if (cx - lx) ** 2 + (cy - ly) ** 2 > self.max_jump ** 2:
                         trail.append(None)
                         self._prev_grid.pop(track_id, None)
+                        if self.y_inertia < 1.0:
+                            self._cy_ema.pop(track_id, None)
 
             trail.append((cx, cy))
             while sum(1 for p in trail if p is not None) > self.trail_length:

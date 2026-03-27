@@ -98,7 +98,8 @@ else:
 
 feature_detector = FeatureDetector(conf=FEATURE_CONF, imgsz=FEATURE_IMGSZ) if args.features else None
 path_tracer = PathTracer(w, h, trail_length=PATH_TRAIL_LENGTH, max_jump=PATH_MAX_JUMP, decay_every=PATH_DECAY_EVERY,
-                         anchor=0.875 if args.paths_feet else 0.125) if args.paths else None
+                         anchor=0.69 if args.paths_feet else 0.125,
+                         y_inertia=0.4 if args.paths_feet else 1.0) if args.paths else None
 first_frame_done = False
 
 track_history = {}
