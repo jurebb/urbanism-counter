@@ -1,0 +1,149 @@
+"""
+Batch runner — processes all videos in batch.yaml against all variants in parallel.
+
+Usage:
+    python batch_run.py batch.yaml
+    python batch_run.py batch.yaml --dry-run   # print jobs without running
+"""
+
+import os
+import sys
+import yaml
+import subprocess
+import concurrent.futures
+from pathlib import Path
+from datetime import datetime
+
+
+def load_config(path: str) -> dict:
+    with open(path) as f:
+        return yaml.safe_load(f)
+
+
+def get_videos(config: dict) -> list[dict]:
+    """Return list of {path, features_frame} dicts from videos_dir + per-video overrides."""
+    overrides = {
+        Path(v["path"]).expanduser().resolve(): v
+        for v in config.get("videos", [])
+    }
+
+    videos = []
+    videos_dir = config.get("videos_dir")
+    if videos_dir:
+        videos_dir = Path(videos_dir).expanduser().resolve()
+        for mp4 in sorted(videos_dir.glob("*.mp4")):
+            override = overrides.get(mp4, {})
+            videos.append({
+                "path": str(mp4),
+                "features_frame": override.get("features_frame", 0),
+            })
+
+    # Include explicitly listed videos not covered by videos_dir
+    for v in config.get("videos", []):
+        p = Path(v["path"]).expanduser().resolve()
+        if not videos_dir or not str(p).startswith(str(videos_dir)):
+            videos.append({
+                "path": str(p),
+                "features_frame": v.get("features_frame", 0),
+            })
+
+    return videos
+
+
+def build_jobs(config: dict, videos: list[dict]) -> list[dict]:
+    """Build the full job list: one entry per (video, variant) pair."""
+    output_root = Path(config["output_dir"]).expanduser()
+    jobs = []
+
+    for video in videos:
+        video_path = Path(video["path"])
+        video_name = video_path.stem
+        features_frame = video.get("features_frame", 0)
+
+        for variant in config["variants"]:
+            variant_dir = output_root / video_name / variant["name"]
+            flags = [str(f) for f in variant.get("flags", [])]
+
+            if features_frame > 0:
+                flags += ["--features-frame", str(features_frame)]
+
+            if variant.get("features_only"):
+                flags.append("--features-only")
+
+            flags += ["--output-dir", str(variant_dir)]
+
+            jobs.append({
+                "video":      str(video_path),
+                "variant":    variant["name"],
+                "video_name": video_name,
+                "output_dir": str(variant_dir),
+                "flags":      flags,
+            })
+
+    return jobs
+
+
+def run_job(job: dict) -> dict:
+    output_dir = Path(job["output_dir"])
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    log_path = output_dir / "run.log"
+    cmd = [sys.executable, "tracker_ocsort.py", job["video"]] + job["flags"]
+    label = f"{job['video_name']}/{job['variant']}"
+
+    start = datetime.now()
+    print(f"[START] {label}", flush=True)
+
+    with open(log_path, "w") as log:
+        log.write(f"CMD: {' '.join(cmd)}\n")
+        log.write(f"START: {start.isoformat()}\n\n")
+        result = subprocess.run(cmd, stdout=log, stderr=subprocess.STDOUT, text=True)
+
+    elapsed = int((datetime.now() - start).total_seconds())
+    status = "OK" if result.returncode == 0 else f"FAIL({result.returncode})"
+    print(f"[{status}] {label} — {elapsed}s", flush=True)
+    return {"label": label, "status": status, "elapsed": elapsed}
+
+
+def main():
+    dry_run = "--dry-run" in sys.argv
+    config_path = next((a for a in sys.argv[1:] if not a.startswith("--")), None)
+    if not config_path:
+        print("Usage: python batch_run.py batch.yaml [--dry-run]")
+        sys.exit(1)
+
+    config = load_config(config_path)
+    videos = get_videos(config)
+    jobs = build_jobs(config, videos)
+    max_parallel = config.get("max_parallel", 3)
+
+    print(f"\nBatch: {len(jobs)} jobs ({len(videos)} videos × {len(config['variants'])} variants), {max_parallel} parallel")
+    if dry_run:
+        print("\n--- DRY RUN ---")
+        for job in jobs:
+            print(f"  {job['video_name']}/{job['variant']}")
+            print(f"    cmd: tracker_ocsort.py {job['video']} {' '.join(job['flags'])}")
+        return
+
+    print()
+    results = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_parallel) as pool:
+        futures = {pool.submit(run_job, job): job for job in jobs}
+        for future in concurrent.futures.as_completed(futures):
+            try:
+                results.append(future.result())
+            except Exception as e:
+                job = futures[future]
+                label = f"{job['video_name']}/{job['variant']}"
+                print(f"[ERROR] {label}: {e}", flush=True)
+                results.append({"label": label, "status": f"ERROR", "elapsed": 0})
+
+    ok = sum(1 for r in results if r["status"] == "OK")
+    print(f"\n{'='*50}")
+    print(f"Done: {ok}/{len(results)} succeeded")
+    for r in sorted(results, key=lambda r: r["label"]):
+        print(f"  [{r['status']:12}] {r['label']} ({r['elapsed']}s)")
+
+
+if __name__ == "__main__":
+    main()

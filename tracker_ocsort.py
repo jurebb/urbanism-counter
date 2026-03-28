@@ -25,6 +25,8 @@ parser.add_argument("--features-filter", nargs="+", default=None, metavar="CAT",
 parser.add_argument("--features-frame", type=int, default=0, metavar="N", help="Frame number to use for feature detection (default: 0)")
 parser.add_argument("--paths", action="store_true", default=False, help="Overlay live path trails and save density image at end")
 parser.add_argument("--paths-feet", action="store_true", default=False, help="Anchor path trails near feet instead of head")
+parser.add_argument("--output-dir", type=str, default=None, help="Output directory for video and all supplements (overrides default)")
+parser.add_argument("--features-only", action="store_true", default=False, help="Detect features on one frame and save PNGs only — skips full tracking")
 args = parser.parse_args()
 
 DETECTOR_MODEL   = "yolo11x.pt"
@@ -63,30 +65,35 @@ w, h, fps = (
     for x in (cv2.CAP_PROP_FRAME_WIDTH, cv2.CAP_PROP_FRAME_HEIGHT, cv2.CAP_PROP_FPS)
 )
 
-CONF = DS_CONF
-tracker = DeepOcSort(
-    reid_weights=Path(DS_REID_MODEL),
-    device=torch.device(compute_device),
-    half=False,
-    delta_t=DS_DELTA_T,
-    inertia=DS_INERTIA,
-    w_association_emb=DS_W_ASSOC_EMB,
-    alpha_fixed_emb=DS_ALPHA_FIXED_EMB,
-    max_age=DS_MAX_AGE,
-    min_hits=DS_MIN_HITS,
-    asso_func=DS_ASSO_FUNC,
-)
-tracker_label = "DeepOcSort"
-
 input_name = os.path.splitext(os.path.basename(video_path))[0]
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-os.makedirs("output", exist_ok=True)
-output_path = f"output/{input_name}_{timestamp}_deepocsort.mp4"
-supplements_dir = os.path.splitext(output_path)[0]
+if args.output_dir is not None:
+    supplements_dir = args.output_dir
+    output_path = f"{supplements_dir}/video.mp4"
+else:
+    os.makedirs("output", exist_ok=True)
+    output_path = f"output/{input_name}_{timestamp}_deepocsort.mp4"
+    supplements_dir = os.path.splitext(output_path)[0]
 os.makedirs(supplements_dir, exist_ok=True)
-video_writer = cv2.VideoWriter(
-    output_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h)
-)
+
+if not args.features_only:
+    CONF = DS_CONF
+    tracker = DeepOcSort(
+        reid_weights=Path(DS_REID_MODEL),
+        device=torch.device(compute_device),
+        half=False,
+        delta_t=DS_DELTA_T,
+        inertia=DS_INERTIA,
+        w_association_emb=DS_W_ASSOC_EMB,
+        alpha_fixed_emb=DS_ALPHA_FIXED_EMB,
+        max_age=DS_MAX_AGE,
+        min_hits=DS_MIN_HITS,
+        asso_func=DS_ASSO_FUNC,
+    )
+    tracker_label = "DeepOcSort"
+    video_writer = cv2.VideoWriter(
+        output_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h)
+    )
 
 if args.features and args.features_frame > 0:
     cap.set(cv2.CAP_PROP_POS_FRAMES, args.features_frame)
@@ -95,6 +102,22 @@ if args.features and args.features_frame > 0:
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 else:
     _features_frame = None
+
+def run_features_only(frame, out_dir, categories):
+    fd = FeatureDetector(conf=FEATURE_CONF, imgsz=FEATURE_IMGSZ)
+    fd.detect(frame)
+    fd.print_summary()
+    fd.save(frame, f"{out_dir}/features.png", categories=categories)
+    fd.save_summary(f"{out_dir}/features.txt")
+    print("Features-only run complete.")
+
+if args.features_only:
+    if _features_frame is None:
+        ret, _features_frame = cap.read()
+        assert ret, "Could not read frame 0 for feature detection"
+    cap.release()
+    run_features_only(_features_frame, supplements_dir, args.features_filter)
+    import sys; sys.exit(0)
 
 feature_detector = FeatureDetector(conf=FEATURE_CONF, imgsz=FEATURE_IMGSZ) if args.features else None
 path_tracer = PathTracer(w, h, trail_length=PATH_TRAIL_LENGTH, max_jump=PATH_MAX_JUMP, decay_every=PATH_DECAY_EVERY,
