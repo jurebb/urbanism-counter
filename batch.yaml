@@ -15,7 +15,7 @@
 #         match exactly what's in videos_dir. Unlisted videos use defaults.
 
 output_dir: output/
-max_parallel: 4
+max_parallel: 3
 
 variants:
   - name: dwell_paths
