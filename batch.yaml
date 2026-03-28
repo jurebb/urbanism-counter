@@ -1,0 +1,68 @@
+# Batch processing config
+# Run: python batch_run.py batch.yaml
+#
+# Output structure:
+#   output/
+#     <video_name>/
+#       <variant_name>/
+#         video.mp4 + all supplements (heatmap.png, paths.png, counts.txt, ...)
+#
+# features_only: true  — skips full tracking, just outputs feature PNGs (fast)
+# features_frame: N    — frame number to use for feature detection (default: 0)
+#
+# videos_dir: picks up all .mp4 files in that folder automatically.
+# videos: optional per-video overrides (e.g. features_frame). Filenames must
+#         match exactly what's in videos_dir. Unlisted videos use defaults.
+
+output_dir: output/
+max_parallel: 4
+
+variants:
+  - name: dwell_paths
+    flags: [--heatmap, --dwell, --no-boxes, --no-counter, --paths]
+
+  - name: paths
+    flags: [--no-boxes, --no-counter, --paths]
+
+  - name: features_seating
+    flags: [--features, --features-filter, Seating]
+    features_only: true
+
+  - name: features_all
+    flags: [--features, --features-filter, Seating, Bins, Lamps, Fountains]
+    features_only: true
+
+  - name: full
+    flags: [--features, --features-filter, Seating, --heatmap, --dwell, --no-boxes, --no-counter, --paths]
+
+  - name: poeple_tracker
+    flags: []
+
+videos_dir: ~/Documents/data/2parkscontrolbeh/raw/**/*75fps.mp4
+
+# Optional per-video overrides — omit a video entirely to use defaults
+videos:
+  - path: /Users/jurebb/Documents/data/2parkscontrolbeh/raw/yamaguchi/6_Yamaguchi-Park-2-75fps.mp4
+    features_frame: 358
+  - path: ~/Documents/data/2parkscontrolbeh/raw/gipuzkoa/7_Gipuzkoa-Pedestrian-2-75fps.mp4
+    features_frame: 452
+  - path: ~/Users/jurebb/Documents/data/2parkscontrolbeh/raw/gipuzkoa/6_Gipuzkoa-Bikelane-2-75fps.mp4
+    features_frame: 443
+  - path: /Users/jurebb/Documents/data/2parkscontrolbeh/raw/gipuzkoa/5_Gipuzkoa-Park-75fps.mp4
+    features_frame: 125
+  - path: '~/Documents/data/2parkscontrolbeh/raw/gipuzkoa/4_Gipuzkoa-Bike Lane-75fps.mp4'
+    features_frame: 133
+  - path: '/Users/jurebb/Documents/data/2parkscontrolbeh/raw/gipuzkoa/3_Gipuzkoa-Pedestrian Street-75fps.mp4'
+    features_frame: 122
+  - path: /Users/jurebb/Documents/data/2parkscontrolbeh/raw/gipuzkoa/2_Gipuzkoa-Motorcycles-75fps.mp4
+    features_frame: 484
+  - path: '/Users/jurebb/Documents/data/2parkscontrolbeh/raw/gipuzkoa/1_Gipuzkoa-Bus Stop-75fps.mp4'
+    features_frame: 172
+  - path: /Users/jurebb/Documents/data/2parkscontrolbeh/raw/yamaguchi/5_Yamaguchi-South-75fps.mp4
+    features_frame: 374
+  - path: /Users/jurebb/Documents/data/2parkscontrolbeh/raw/yamaguchi/4_Yamaguchi-Park-75fps.mp4
+    features_frame: 115  # re-check
+  - path: /Users/jurebb/Documents/data/2parkscontrolbeh/raw/yamaguchi/2_Yamaguchi-North-2-75fps.mp4
+    features_frame: 26
+  - path: /Users/jurebb/Documents/data/2parkscontrolbeh/raw/yamaguchi/1_Yamaguchi-North-75fps.mp4
+    features_frame: 330
