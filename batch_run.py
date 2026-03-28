@@ -89,6 +89,28 @@ def build_jobs(config: dict, videos: list[dict]) -> list[dict]:
     return jobs
 
 
+def format_duration(seconds: int) -> str:
+    h, rem = divmod(seconds, 3600)
+    m, s = divmod(rem, 60)
+    if h:
+        return f"{h}h {m}m {s}s"
+    if m:
+        return f"{m}m {s}s"
+    return f"{s}s"
+
+
+def print_summary(results: list, start: datetime, end: datetime) -> None:
+    elapsed = int((end - start).total_seconds())
+    ok = sum(1 for r in results if r["status"] == "OK")
+    print(f"\n{'='*50}")
+    print(f"Started:  {start.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"Finished: {end.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"Duration: {format_duration(elapsed)}")
+    print(f"Jobs:     {ok}/{len(results)} succeeded")
+    for r in sorted(results, key=lambda r: r["label"]):
+        print(f"  [{r['status']:12}] {r['label']} ({format_duration(r['elapsed'])})")
+
+
 def run_job(job: dict) -> dict:
     output_dir = Path(job["output_dir"])
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -107,7 +129,7 @@ def run_job(job: dict) -> dict:
 
     elapsed = int((datetime.now() - start).total_seconds())
     status = "OK" if result.returncode == 0 else f"FAIL({result.returncode})"
-    print(f"[{status}] {label} — {elapsed}s", flush=True)
+    print(f"[{status}] {label} — {format_duration(elapsed)}", flush=True)
     return {"label": label, "status": status, "elapsed": elapsed}
 
 
@@ -132,6 +154,8 @@ def main():
         return
 
     print()
+    batch_start = datetime.now()
+    print(f"Started:  {batch_start.strftime('%Y-%m-%d %H:%M:%S')}")
     results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_parallel) as pool:
         futures = {pool.submit(run_job, job): job for job in jobs}
@@ -144,11 +168,8 @@ def main():
                 print(f"[ERROR] {label}: {e}", flush=True)
                 results.append({"label": label, "status": f"ERROR", "elapsed": 0})
 
-    ok = sum(1 for r in results if r["status"] == "OK")
-    print(f"\n{'='*50}")
-    print(f"Done: {ok}/{len(results)} succeeded")
-    for r in sorted(results, key=lambda r: r["label"]):
-        print(f"  [{r['status']:12}] {r['label']} ({r['elapsed']}s)")
+    batch_end = datetime.now()
+    print_summary(results, batch_start, batch_end)
 
 
 if __name__ == "__main__":

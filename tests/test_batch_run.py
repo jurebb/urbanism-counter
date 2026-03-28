@@ -1,7 +1,8 @@
 import pytest
 from pathlib import Path
 from unittest.mock import patch
-from batch_run import get_videos, build_jobs
+from datetime import datetime
+from batch_run import get_videos, build_jobs, format_duration, print_summary
 
 
 DUMMY_CONFIG = {
@@ -13,6 +14,43 @@ DUMMY_CONFIG = {
         {"name": "plain", "flags": []},
     ],
 }
+
+
+class TestFormatDuration:
+    def test_seconds_only(self):
+        assert format_duration(45) == "45s"
+
+    def test_minutes_and_seconds(self):
+        assert format_duration(125) == "2m 5s"
+
+    def test_hours_minutes_seconds(self):
+        assert format_duration(3661) == "1h 1m 1s"
+
+    def test_long_batch_12_hours(self):
+        assert format_duration(12 * 3600) == "12h 0m 0s"
+
+
+class TestPrintSummary:
+    def test_prints_start_finish_duration(self, capsys):
+        start = datetime(2026, 3, 28, 10, 0, 0)
+        end   = datetime(2026, 3, 28, 10, 5, 30)
+        results = [{"label": "vid/paths", "status": "OK", "elapsed": 330}]
+        print_summary(results, start, end)
+        out = capsys.readouterr().out
+        assert "2026-03-28 10:00:00" in out
+        assert "2026-03-28 10:05:30" in out
+        assert "5m 30s" in out
+
+    def test_counts_successes(self, capsys):
+        start = datetime(2026, 3, 28, 9, 0, 0)
+        end   = datetime(2026, 3, 28, 9, 1, 0)
+        results = [
+            {"label": "a/paths", "status": "OK",      "elapsed": 30},
+            {"label": "b/paths", "status": "FAIL(1)", "elapsed": 10},
+        ]
+        print_summary(results, start, end)
+        out = capsys.readouterr().out
+        assert "1/2" in out
 
 
 class TestGetVideos:
