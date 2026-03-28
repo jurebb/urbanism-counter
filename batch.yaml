@@ -21,22 +21,22 @@ variants:
   - name: dwell_paths
     flags: [--heatmap, --dwell, --no-boxes, --no-counter, --paths]
 
-  # - name: paths
-  #   flags: [--no-boxes, --no-counter, --paths]
+  - name: paths
+    flags: [--no-boxes, --no-counter, --paths]
 
-  # - name: features_seating
-  #   flags: [--features, --features-filter, Seating]
-  #   features_only: true
+  - name: features_seating
+    flags: [--features, --features-filter, Seating]
+    features_only: true
 
-  # - name: features_all
-  #   flags: [--features, --features-filter, Seating, Bins, Lamps, Fountains]
-  #   features_only: true
+  - name: features_all
+    flags: [--features, --features-filter, Seating, Bins, Lamps, Fountains]
+    features_only: true
 
-  # - name: full
-  #   flags: [--features, --features-filter, Seating, --heatmap, --dwell, --no-boxes, --no-counter, --paths]
+  - name: full
+    flags: [--features, --features-filter, Seating, --heatmap, --dwell, --no-boxes, --no-counter, --paths]
 
-  # - name: poeple_tracker
-  #   flags: []
+  - name: poeple_tracker
+    flags: []
 
 videos_dir: ~/Documents/data/2parkscontrolbeh/raw/**/*75fps.mp4
 
