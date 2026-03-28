@@ -35,7 +35,7 @@ variants:
   - name: full
     flags: [--features, --features-filter, Seating, --heatmap, --dwell, --no-boxes, --no-counter, --paths]
 
-  - name: plain
+  - name: poeple_tracker
     flags: []
 
 videos_dir: ~/Documents/data/2parkscontrolbeh/test_batch/
