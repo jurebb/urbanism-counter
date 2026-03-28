@@ -7,6 +7,7 @@ FEATURE_COLORS = {
     "bench":                  (79, 182, 235),
     "park bench":             (79, 182, 235),
     "picnic table":           (79, 182, 235),
+    "outdoor chair":          (79, 182, 235),
     # trees — Garden #34763D
     "tree":                   (61, 118, 52),
     "urban tree":             (61, 118, 52),
@@ -27,6 +28,7 @@ FEATURE_CATEGORY = {
     "bench":                "Seating",
     "park bench":           "Seating",
     "picnic table":         "Seating",
+    "outdoor chair":        "Seating",
     "tree":                 "Trees",
     "urban tree":           "Trees",
     "park tree":            "Trees",

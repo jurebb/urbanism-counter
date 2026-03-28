@@ -50,7 +50,7 @@ videos:
     features_frame: 443
   - path: /Users/jurebb/Documents/data/2parkscontrolbeh/raw/gipuzkoa/5_Gipuzkoa-Park-75fps.mp4
     features_frame: 125
-  - path: '~/Documents/data/2parkscontrolbeh/raw/gipuzkoa/4_Gipuzkoa-Bike Lane-75fps.mp4'
+  - path: '/Users/jurebb/Documents/data/2parkscontrolbeh/raw/gipuzkoa/4_Gipuzkoa-Bike Lane-75fps.mp4'
     features_frame: 133
   - path: '/Users/jurebb/Documents/data/2parkscontrolbeh/raw/gipuzkoa/3_Gipuzkoa-Pedestrian Street-75fps.mp4'
     features_frame: 122
