@@ -33,6 +33,7 @@ class TestGetVideos:
             "videos": [{"path": str(mp4), "features_frame": 99}],
         }
         videos = get_videos(config)
+        assert len(videos) == 1, "override entry must not duplicate the glob result"
         assert videos[0]["features_frame"] == 99
 
     def test_unlisted_video_defaults_to_frame_zero(self, tmp_path):
@@ -40,6 +41,19 @@ class TestGetVideos:
         config = {"videos_dir": str(tmp_path), "videos": []}
         videos = get_videos(config)
         assert videos[0]["features_frame"] == 0
+
+    def test_glob_pattern_traverses_subdirs(self, tmp_path):
+        sub1 = tmp_path / "park1"
+        sub2 = tmp_path / "park2"
+        sub1.mkdir(); sub2.mkdir()
+        (sub1 / "clip_75fps.mp4").touch()
+        (sub2 / "clip_75fps.mp4").touch()
+        (sub1 / "clip_other.mp4").touch()  # should be excluded
+        config = {"videos_dir": str(tmp_path / "**" / "*75fps.mp4"), "videos": []}
+        videos = get_videos(config)
+        names = [Path(v["path"]).name for v in videos]
+        assert sorted(names) == ["clip_75fps.mp4", "clip_75fps.mp4"]
+        assert all("other" not in n for n in names)
 
     def test_no_videos_dir_uses_explicit_list(self, tmp_path):
         mp4 = tmp_path / "clip.mp4"

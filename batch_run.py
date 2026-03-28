@@ -27,21 +27,27 @@ def get_videos(config: dict) -> list[dict]:
         for v in config.get("videos", [])
     }
 
+    import glob as _glob
     videos = []
-    videos_dir = config.get("videos_dir")
-    if videos_dir:
-        videos_dir = Path(videos_dir).expanduser().resolve()
-        for mp4 in sorted(videos_dir.glob("*.mp4")):
+    videos_glob = config.get("videos_dir")
+    if videos_glob:
+        videos_glob = str(Path(videos_glob).expanduser())
+        # Plain directory → match all mp4s in it
+        if not any(c in videos_glob for c in ("*", "?", "[")):
+            videos_glob = videos_glob.rstrip("/") + "/*.mp4"
+        for mp4_str in sorted(_glob.glob(videos_glob, recursive=True)):
+            mp4 = Path(mp4_str).resolve()
             override = overrides.get(mp4, {})
             videos.append({
                 "path": str(mp4),
                 "features_frame": override.get("features_frame", 0),
             })
 
-    # Include explicitly listed videos not covered by videos_dir
+    # Include explicitly listed videos not already picked up by the glob
+    added = {v["path"] for v in videos}
     for v in config.get("videos", []):
         p = Path(v["path"]).expanduser().resolve()
-        if not videos_dir or not str(p).startswith(str(videos_dir)):
+        if str(p) not in added:
             videos.append({
                 "path": str(p),
                 "features_frame": v.get("features_frame", 0),
