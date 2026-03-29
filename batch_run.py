@@ -115,17 +115,13 @@ def run_job(job: dict) -> dict:
     output_dir = Path(job["output_dir"])
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    log_path = output_dir / "run.log"
     cmd = [sys.executable, "tracker_ocsort.py", job["video"]] + job["flags"]
     label = f"{job['video_name']}/{job['variant']}"
 
     start = datetime.now()
     print(f"[START] {label}", flush=True)
 
-    with open(log_path, "w") as log:
-        log.write(f"CMD: {' '.join(cmd)}\n")
-        log.write(f"START: {start.isoformat()}\n\n")
-        result = subprocess.run(cmd, stdout=log, stderr=subprocess.STDOUT, text=True)
+    result = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     elapsed = int((datetime.now() - start).total_seconds())
     status = "OK" if result.returncode == 0 else f"FAIL({result.returncode})"

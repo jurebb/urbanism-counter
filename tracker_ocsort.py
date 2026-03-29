@@ -108,7 +108,6 @@ def run_features_only(frame, out_dir, categories):
     fd.detect(frame)
     fd.print_summary()
     fd.save(frame, f"{out_dir}/features.png", categories=categories)
-    fd.save_summary(f"{out_dir}/features.txt")
     print("Features-only run complete.")
 
 if args.features_only:
@@ -247,7 +246,6 @@ while cap.isOpened():
             feature_detector.detect(_features_frame if _features_frame is not None else frame)
             feature_detector.print_summary()
             feature_detector.save(frame, f"{supplements_dir}/features.png", categories=args.features_filter)
-            feature_detector.save_summary(f"{supplements_dir}/features.txt")
             first_frame_done = True
         annotated_frame = feature_detector.render(annotated_frame, categories=args.features_filter)
 
